@@ -6,6 +6,7 @@ pragma solidity ^0.8.20;
 // 2. ZKP proof
 struct PreimageProofOutput {
     bytes32 dataHash;
+    bytes16 sealedKey;
     bool isValid;
 }
 

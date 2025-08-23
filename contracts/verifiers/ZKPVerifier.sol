@@ -2,12 +2,33 @@
 pragma solidity ^0.8.20;
 
 import "./base/BaseVerifier.sol";
+import "../interfaces/IGroth16Verifier.sol";
+import "../interfaces/IERC7857DataVerifier.sol";
 
-contract ZKPVerifier is BaseVerifier {
-    address public immutable attestationContract;
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-    constructor(address _attestationContract) {
-        attestationContract = _attestationContract;
+contract ZKPVerifier is BaseVerifier, Ownable {
+
+    address public preimageVerifier;
+    address public transferVerifier;
+
+    // Commitment -> RootHash
+    mapping(uint256 => bytes32) public rootHashes;
+
+    constructor(address _preimageVerifier, address _transferVerifier) Ownable(msg.sender) {
+        preimageVerifier = _preimageVerifier;
+        transferVerifier = _transferVerifier;
+    }
+
+    function setPreimageVerifier(address _preimageVerifier) external onlyOwner {
+        preimageVerifier = _preimageVerifier;
+    }
+    function setTransferVerifier(address _transferVerifier) external onlyOwner {
+        transferVerifier = _transferVerifier;
+    }
+
+    function setRootHash(uint256 _commitment, bytes32 _rootHash) external onlyOwner {
+        rootHashes[_commitment] = _rootHash;
     }
 
     /// @notice Verify preimage of data, the _proof prove:
@@ -18,17 +39,59 @@ contract ZKPVerifier is BaseVerifier {
     function verifyPreimage(
         bytes[] calldata proofs
     ) external view override returns (PreimageProofOutput[] memory) {
-        PreimageProofOutput[] memory outputs = new PreimageProofOutput[](
-            proofs.length
-        );
+        PreimageProofOutput[] memory outputs = new PreimageProofOutput[](proofs.length);
+
         for (uint256 i = 0; i < proofs.length; i++) {
-            require(proofs[i].length == 32, "Invalid data hash length");
-            bytes32 dataHash = bytes32(proofs[i]);
+            bytes calldata proof = proofs[i];
+            require(proof.length >= 368, "Invalid proof length");
+
+            bytes32 dataHash;
+            bytes16 sealedKey;
+            uint256 nonce;
+            uint256 mac;
+            uint[2] memory a;
+            uint[2][2] memory b;
+            uint[2] memory c;
+
+            // 使用 assembly 从 bytes 中按偏移量读取数据
+            assembly {
+                // bytes 数据的起始位置 = proof.offset
+                let ptr := add(proof.offset, 0x20) // calldata 前 32 字节是 length
+
+                dataHash := calldataload(proof.offset)             // 0 ~ 32
+                sealedKey := calldataload(add(proof.offset, 32))   // 32 ~ 48
+                nonce := calldataload(add(proof.offset, 48))       // 48 ~ 80
+                mac := calldataload(add(proof.offset, 80))         // 80 ~ 112
+
+                a_0 := calldataload(add(proof.offset, 112))
+                a_1 := calldataload(add(proof.offset, 144))
+
+                mstore(a, a_0)
+                mstore(add(a, 0x20), a_1)
+
+                mstore(b, calldataload(add(proof.offset, 176)))
+                mstore(add(b, 0x20), calldataload(add(proof.offset, 208)))
+                mstore(add(b, 0x40), calldataload(add(proof.offset, 240)))
+                mstore(add(b, 0x60), calldataload(add(proof.offset, 272)))
+
+                mstore(c, calldataload(add(proof.offset, 304)))
+                mstore(add(c, 0x20), calldataload(add(proof.offset, 336)))
+            }
 
             bool isValid = true;
+            if (preimageVerifier != address(0)) {
+                IGroth16Verifier verifier = IGroth16Verifier(preimageVerifier);
 
-            outputs[i] = PreimageProofOutput(dataHash, isValid);
+                uint[] memory publicInputs = new uint[](2);
+                publicInputs[0] = nonce;
+                publicInputs[1] = mac;
+
+                isValid = verifier.verifyProof(a, b, c, publicInputs);
+            }
+
+            outputs[i] = PreimageProofOutput(dataHash, sealedKey, isValid);
         }
+
         return outputs;
     }
 

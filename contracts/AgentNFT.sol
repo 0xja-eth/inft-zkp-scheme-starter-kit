@@ -148,7 +148,9 @@ contract AgentNFT is
         }
 
         PreimageProofOutput[] memory proofOupt = $.verifier.verifyPreimage(proofs);
+
         bytes32[] memory dataHashes = new bytes32[](proofOupt.length);
+        bytes16[] memory sealedKeys = new bytes16[](proofOupt.length);
 
         for (uint i = 0; i < proofOupt.length; i++) {
             require(
@@ -163,6 +165,7 @@ contract AgentNFT is
                 )
             );
             dataHashes[i] = proofOupt[i].dataHash;
+            sealedKeys[i] = proofOupt[i].sealedKey;
         }
 
         tokenId = $.nextTokenId++;
@@ -174,6 +177,7 @@ contract AgentNFT is
         });
 
         emit Minted(tokenId, msg.sender, to, dataHashes, dataDescriptions);
+        emit PublishedSealedKey(to, tokenId, sealedKeys);
     }
 
     function transfer(

@@ -1,5 +1,5 @@
 import { ethers } from 'ethers';
-import { AgentNFTClient } from '../../lib/AgentNFTClient';
+import { AgentNFTClient } from '../../shared/lib/AgentNFTClient';
 import { getScriptConfig, getScriptParams, printConfig } from '../utils/get-config';
 
 async function main() {

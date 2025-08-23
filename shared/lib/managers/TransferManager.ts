@@ -1,9 +1,9 @@
 import { ethers } from 'ethers';
-import { IZGStorage } from '../services/ZGStorage';
-import { EncryptionService } from '../services/EncryptionService';
+import { IStorageService } from '../services/storage/StorageService';
 import { MetadataManager } from './MetadataManager';
 import { ProofData } from '../types';
 import * as crypto from 'crypto';
+import {CryptoService} from "../services/crypto/ICryptoService";
 
 export interface TransferResult {
   proofs: string[];
@@ -19,17 +19,19 @@ export interface CloneResult {
 }
 
 export class TransferManager {
-  private storage: IZGStorage;
-  private encryption: EncryptionService;
+  private storage: IStorageService;
+  private crypto: CryptoService;
+
   private metadataManager: MetadataManager;
 
   constructor(
-    ogStorage: IZGStorage,
-    encryptionService: EncryptionService,
+    storageService: IStorageService,
+    cryptoService: CryptoService,
     metadataManager: MetadataManager
   ) {
-    this.storage = ogStorage;
-    this.encryption = encryptionService;
+    this.storage = storageService;
+    this.crypto = cryptoService;
+
     this.metadataManager = metadataManager;
   }
 

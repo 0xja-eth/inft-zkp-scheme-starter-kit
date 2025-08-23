@@ -1,6 +1,6 @@
 import { ethers } from 'ethers';
-import { AgentNFTClient } from '../../lib/AgentNFTClient';
-import { AIModelData } from '../../lib/types';
+import { AgentNFTClient } from '../../shared/lib/AgentNFTClient';
+import { AIModelData } from '../../shared/lib/types';
 import { getScriptConfig, printConfig } from '../utils/get-config';
 
 async function main() {

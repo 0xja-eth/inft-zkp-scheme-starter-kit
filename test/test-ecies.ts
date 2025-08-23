@@ -1,7 +1,7 @@
 #!/usr/bin/env npx ts-node
 
 import { ethers } from 'ethers';
-import { EncryptionService } from '../lib/services/EncryptionService';
+import { EncryptionService } from '../shared/lib/services/temp/EncryptionService';
 
 /**
  * Test script for ECIES key sealing/unsealing

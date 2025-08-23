@@ -91,3 +91,7 @@ secrets/
 
 # System files
 *.tmp
+
+/zkproof
+
+CLAUDE.md

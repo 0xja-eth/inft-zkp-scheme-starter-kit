@@ -1,6 +1,6 @@
 import * as dotenv from 'dotenv';
 import { getDeployedAddresses } from './get-contract-addresses';
-import {StorageConfig} from "../../lib/types";
+import {StorageConfig} from "../../shared/lib/types";
 
 dotenv.config();
 

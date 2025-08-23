@@ -1,40 +1,41 @@
 import { ethers } from 'ethers';
-import { IZGStorage } from '../services/ZGStorage';
-import { EncryptionService } from '../services/EncryptionService';
-import { AIAgentMetadata, AIModelData, EncryptedMetadataResult, DecryptedMetadata } from '../types';
-import * as crypto from 'crypto';
+import { IStorageService } from '../services/storage/StorageService';
+import { Metadata, EncryptedMetadataResult, DecryptedMetadata } from '../types';
+import {CryptoService} from "../services/crypto/ICryptoService";
 
 export class MetadataManager {
-  private storage: IZGStorage;
-  private encryption: EncryptionService;
+  private storage: IStorageService;
+  private crypto: CryptoService;
 
-  constructor(ogStorage: IZGStorage, encryptionService: EncryptionService) {
-    this.storage = ogStorage;
-    this.encryption = encryptionService;
+  constructor(storageService: IStorageService, cryptoService: CryptoService) {
+    this.storage = storageService;
+    this.crypto = cryptoService;
+  }
+
+  defaultMetadata(): Metadata {
+    return {
+      name: "",
+      description: "",
+      avatar: "",
+      externalUrl: "",
+      version: "",
+      model: "",
+      personality: "",
+      capabilities: [],
+      attributes: {}
+    };
   }
 
   /**
    * Create AI Agent metadata and store it encrypted
    */
-  async createAIAgent(aiModelData: AIModelData, ownerPublicKey: string): Promise<EncryptedMetadataResult> {
+  async uploadAIAgent(metadata: Metadata, ownerPublicKey: string): Promise<EncryptedMetadataResult> {
     try {
-      // Prepare AI agent metadata
-      const metadata: AIAgentMetadata = {
-        model: aiModelData.model,
-        weights: aiModelData.weights,
-        config: aiModelData.config,
-        capabilities: aiModelData.capabilities,
-        version: '1.0',
-        createdAt: Date.now(),
-        description: aiModelData.description,
-        tags: aiModelData.tags,
-      };
-
       // Generate encryption key
-      const encryptionKey = this.encryption.generateKey();
+      const encryptionKey = this.crypto.generateKey();
 
       // Encrypt metadata
-      const encryptedData = await this.encryption.encrypt(
+      const encryptedData = await this.crypto.encrypt(
         JSON.stringify(metadata),
         encryptionKey
       );
@@ -43,12 +44,13 @@ export class MetadataManager {
       const storageResult = await this.storage.store(encryptedData);
 
       // Seal encryption key for owner
-      const sealedKey = await this.encryption.sealKey(encryptionKey, ownerPublicKey);
+      const sealedKey = await this.crypto.sealKey(encryptionKey, ownerPublicKey);
 
       return {
+        encryptedData,
         rootHash: storageResult.rootHash,
         sealedKey,
-        encryptionKey, // Keep for internal use, don't expose in production
+        // encryptionKey, // Keep for internal use, don't expose in production
       };
     } catch (error: any) {
       throw new Error(`Failed to create AI agent: ${error.message}`);
@@ -64,8 +66,8 @@ export class MetadataManager {
       const encryptedData = await this.storage.retrieve(rootHash);
 
       // Decrypt metadata
-      const metadataString = await this.encryption.decrypt(encryptedData, encryptionKey);
-      const metadata: AIAgentMetadata = JSON.parse(metadataString);
+      const metadataString = await this.crypto.decrypt(encryptedData, encryptionKey);
+      const metadata: Metadata = JSON.parse(metadataString);
 
       // Validate metadata integrity
       const isValid = this.validateMetadata(metadata);
@@ -85,25 +87,25 @@ export class MetadataManager {
   async updateAIAgent(
     rootHash: string,
     currentEncryptionKey: Buffer,
-    updatedMetadata: Partial<AIAgentMetadata>,
+    updatedMetadata: Partial<Metadata>,
     ownerPublicKey: string
-  ): Promise<EncryptedMetadataResult> {
+  ): Promise<EncryptedMetadataResult & { newMetadata: Metadata }> {
     try {
       // Retrieve current metadata
       const { metadata: currentMetadata } = await this.retrieveAIAgent(rootHash, currentEncryptionKey);
 
       // Merge with updates
-      const newMetadata: AIAgentMetadata = {
+      const newMetadata: Metadata = {
         ...currentMetadata,
         ...updatedMetadata,
         version: this.incrementVersion(currentMetadata.version),
       };
 
       // Generate new encryption key
-      const newEncryptionKey = this.encryption.generateKey();
+      const newEncryptionKey = this.crypto.generateKey();
 
       // Encrypt updated metadata
-      const encryptedData = await this.encryption.encrypt(
+      const encryptedData = await this.crypto.encrypt(
         JSON.stringify(newMetadata),
         newEncryptionKey
       );
@@ -112,12 +114,14 @@ export class MetadataManager {
       const storageResult = await this.storage.store(encryptedData);
 
       // Seal new encryption key
-      const sealedKey = await this.encryption.sealKey(newEncryptionKey, ownerPublicKey);
+      const sealedKey = await this.crypto.sealKey(newEncryptionKey, ownerPublicKey);
 
       return {
+        newMetadata,
+        encryptedData,
         rootHash: storageResult.rootHash,
         sealedKey,
-        encryptionKey: newEncryptionKey,
+        // encryptionKey: newEncryptionKey,
       };
     } catch (error: any) {
       throw new Error(`Failed to update AI agent: ${error.message}`);
@@ -137,10 +141,10 @@ export class MetadataManager {
       const { metadata } = await this.retrieveAIAgent(rootHash, currentEncryptionKey);
 
       // Generate new encryption key for new owner
-      const newEncryptionKey = this.encryption.generateKey();
+      const newEncryptionKey = this.crypto.generateKey();
 
       // Encrypt with new key
-      const encryptedData = await this.encryption.encrypt(
+      const encryptedData = await this.crypto.encrypt(
         JSON.stringify(metadata),
         newEncryptionKey
       );
@@ -149,12 +153,13 @@ export class MetadataManager {
       const storageResult = await this.storage.store(encryptedData);
 
       // Seal new key for new owner
-      const sealedKey = await this.encryption.sealKey(newEncryptionKey, newOwnerPublicKey);
+      const sealedKey = await this.crypto.sealKey(newEncryptionKey, newOwnerPublicKey);
 
       return {
+        encryptedData,
         rootHash: storageResult.rootHash,
         sealedKey,
-        encryptionKey: newEncryptionKey,
+        // encryptionKey: newEncryptionKey,
       };
     } catch (error: any) {
       throw new Error(`Failed to re-encrypt for transfer: ${error.message}`);
@@ -168,25 +173,24 @@ export class MetadataManager {
     sourceRootHash: string,
     sourceEncryptionKey: Buffer,
     newOwnerPublicKey: string,
-    modifications?: Partial<AIAgentMetadata>
+    modifications?: Partial<Metadata>
   ): Promise<EncryptedMetadataResult> {
     try {
       // Retrieve source metadata
       const { metadata: sourceMetadata } = await this.retrieveAIAgent(sourceRootHash, sourceEncryptionKey);
 
       // Create cloned metadata
-      const clonedMetadata: AIAgentMetadata = {
+      const clonedMetadata: Metadata = {
         ...sourceMetadata,
         ...modifications,
-        createdAt: Date.now(), // New creation time for clone
         version: '1.0', // Reset version for clone
       };
 
       // Generate new encryption key
-      const newEncryptionKey = this.encryption.generateKey();
+      const newEncryptionKey = this.crypto.generateKey();
 
       // Encrypt cloned metadata
-      const encryptedData = await this.encryption.encrypt(
+      const encryptedData = await this.crypto.encrypt(
         JSON.stringify(clonedMetadata),
         newEncryptionKey
       );
@@ -195,12 +199,13 @@ export class MetadataManager {
       const storageResult = await this.storage.store(encryptedData);
 
       // Seal key for new owner
-      const sealedKey = await this.encryption.sealKey(newEncryptionKey, newOwnerPublicKey);
+      const sealedKey = await this.crypto.sealKey(newEncryptionKey, newOwnerPublicKey);
 
       return {
+        encryptedData,
         rootHash: storageResult.rootHash,
         sealedKey,
-        encryptionKey: newEncryptionKey,
+        // encryptionKey: newEncryptionKey,
       };
     } catch (error: any) {
       throw new Error(`Failed to clone AI agent: ${error.message}`);
@@ -210,7 +215,7 @@ export class MetadataManager {
   /**
    * Generate metadata hash
    */
-  private generateMetadataHash(metadata: AIAgentMetadata): string {
+  private generateMetadataHash(metadata: Metadata): string {
     const metadataString = JSON.stringify(metadata, Object.keys(metadata).sort());
     return ethers.keccak256(ethers.toUtf8Bytes(metadataString));
   }
@@ -218,15 +223,13 @@ export class MetadataManager {
   /**
    * Validate metadata structure and integrity
    */
-  private validateMetadata(metadata: AIAgentMetadata): boolean {
+  private validateMetadata(metadata: Metadata): boolean {
     try {
       return !!(
         metadata.model &&
         metadata.capabilities &&
         Array.isArray(metadata.capabilities) &&
-        metadata.version &&
-        metadata.createdAt &&
-        typeof metadata.createdAt === 'number'
+        metadata.version
       );
     } catch (error) {
       return false;
@@ -236,7 +239,7 @@ export class MetadataManager {
   /**
    * Increment version string (e.g., "1.0" -> "1.1")
    */
-  private incrementVersion(currentVersion: string): string {
+  private incrementVersion(currentVersion: string = '1.0'): string {
     try {
       const parts = currentVersion.split('.');
       const major = parseInt(parts[0]) || 1;

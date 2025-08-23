@@ -1,27 +1,29 @@
-export interface AIAgentMetadata {
-  model: string;
-  weights: string;
-  config: Record<string, any>;
-  capabilities: string[];
-  version: string;
-  createdAt: number;
-  description?: string;
-  tags?: string[];
+export interface AgentCapability {
+  name: string;
+  description: string;
+  input?: string;
+  output?: string;
+  preconditions?: string[];
+  postconditions?: string[];
 }
 
-export interface AIModelData {
-  model: string;
-  weights: string;
-  config: Record<string, any>;
-  capabilities: string[];
-  description?: string;
-  tags?: string[];
+export interface Metadata {
+  name: string;
+  description: string;
+  avatar?: string;
+  externalUrl?: string;
+  version?: string;
+  model?: string;
+  personality?: string;
+  capabilities?: AgentCapability[];
+  attributes?: Record<string, string | number>;
 }
 
 export interface EncryptedMetadataResult {
+  encryptedData: Buffer;
   rootHash: string;
   sealedKey: string;
-  encryptionKey?: Buffer;
+  // encryptionKey?: Buffer;
 }
 
 export interface StorageResult {
@@ -31,7 +33,7 @@ export interface StorageResult {
 }
 
 export interface DecryptedMetadata {
-  metadata: AIAgentMetadata;
+  metadata: Metadata;
   isValid: boolean;
 }
 

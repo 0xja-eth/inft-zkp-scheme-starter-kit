@@ -14,7 +14,16 @@
     "agent:transfer": "npx ts-node scripts/cli/transfer-agent.ts",
     "agent:clone": "npx ts-node scripts/cli/clone-agent.ts",
     "agent:query": "npx ts-node scripts/cli/query-agent.ts",
-    "test:ecies": "npx ts-node scripts/test-ecies.ts"
+    "test:ecies": "npx ts-node test/test-ecies.ts",
+    "test:zk": "npx ts-node scripts/test-zk-encryption.ts",
+    "test:zk-seal": "npx ts-node scripts/test-zk-key-seal.ts",
+    "zk:setup": "npx ts-node scripts/zkp/setup-zk.ts",
+    "zk:prove": "npx ts-node temp/generate-zkproof.ts",
+    "zk:clean": "rm -rf build/*.r1cs build/*_js zkproof/*.ptau zkproof/*.zkey zkproof/*.json zkproof/*.wtns",
+    "test:metamask": "npx ts-node scripts/test-metamask-encryption.ts",
+    "test:zk-crypto": "npx ts-node test/test-zk-crypto-services.ts",
+    "test:file-encryption-proof": "npx ts-node test/test-file-encryption-proof.ts",
+    "test:complete-file-encryption-proof": "npx ts-node test/test-complete-file-encryption-proof.ts"
   },
   "keywords": [],
   "author": "",
@@ -34,8 +43,10 @@
     "@typechain/ethers-v6": "^0.5.1",
     "@typechain/hardhat": "^9.1.0",
     "@types/chai": "^5.0.1",
+    "@types/circomlibjs": "^0.1.6",
     "@types/mocha": "^10.0.10",
     "@types/node": "^24.2.1",
+    "@types/snarkjs": "^0.7.9",
     "chai": "4.3.7",
     "dotenv": "^16.4.7",
     "ethers": "^6.13.4",
@@ -46,5 +57,11 @@
     "solidity-coverage": "^0.8.14",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "circomlibjs": "^0.1.7",
+    "snarkjs": "^0.7.5",
+    "tweetnacl": "^1.0.3",
+    "tweetnacl-util": "^0.15.1"
   }
 }
