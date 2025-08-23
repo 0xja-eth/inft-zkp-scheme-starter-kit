@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.28;
 
 import "./base/BaseVerifier.sol";
 
@@ -22,12 +22,20 @@ contract TEEVerifier is BaseVerifier {
             proofs.length
         );
         for (uint256 i = 0; i < proofs.length; i++) {
-            require(proofs[i].length == 32, "Invalid data hash length");
-            bytes32 dataHash = bytes32(proofs[i]);
+            bytes calldata proof = proofs[i];
+            require(proofs[i].length == 48, "Invalid data hash length");
+
+            bytes32 dataHash;
+            bytes16 sealedKey;
+
+            assembly {
+                dataHash := calldataload(proof.offset)             // 0 ~ 32
+                sealedKey := calldataload(add(proof.offset, 32))   // 32 ~ 48
+            }
 
             bool isValid = true;
 
-            outputs[i] = PreimageProofOutput(dataHash, isValid);
+            outputs[i] = PreimageProofOutput(dataHash, sealedKey, isValid);
         }
         return outputs;
     }

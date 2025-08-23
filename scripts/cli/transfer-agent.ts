@@ -1,12 +1,11 @@
 import { ethers } from 'ethers';
-import { AgentNFTClient } from '../../shared/lib/AgentNFTClient';
-import { getScriptConfig, getScriptParams, printConfig } from '../utils/get-config';
+import { getScriptParams } from '../utils/get-config';
+import { initializeAgentClient } from '../utils/init-client';
 
 async function main() {
   try {
-    // 获取配置
-    console.log('🔍 Loading configuration...');
-    const config = getScriptConfig({ requireWallet: true, requireContract: true });
+    // Initialize client and get parameters
+    const { agentNFTClient, wallet } = initializeAgentClient();
     const params = getScriptParams();
     
     // 验证参数
@@ -17,52 +16,29 @@ async function main() {
       process.exit(1);
     }
 
-    // 打印配置信息
-    printConfig(config);
-
-    // Setup provider and client
-    const provider = new ethers.JsonRpcProvider(config.network.rpcUrl);
-
-    const encryptionConfig = {
-      algorithm: 'aes-256-gcm' as const,
-      keyDerivation: 'pbkdf2' as const,
-      iterations: 100000,
-      keyLength: 32,
-      ivLength: 12,
-      tagLength: 16,
-    };
-
-    const client = new AgentNFTClient(
-      config.contracts.agentNFTAddress,
-      config.wallet.privateKey,
-      provider,
-      config.ogStorage
-    );
-
     console.log(`Starting transfer process...`);
     console.log(`Token ID: ${params.tokenId}`);
     console.log(`Recipient: ${params.recipientAddress}`);
 
     // Check current owner
     console.log('\nChecking current ownership...');
-    const tokenInfo = await client.getTokenInfo(params.tokenId!);
+    const tokenInfo = await agentNFTClient.getTokenInfo(params.tokenId!);
     console.log(`Current owner: ${tokenInfo.owner}`);
     
-    const wallet = new ethers.Wallet(config.wallet.privateKey);
-    if (tokenInfo.owner.toLowerCase() !== wallet.address.toLowerCase()) {
+    if (tokenInfo.owner.toLowerCase() !== wallet!.address.toLowerCase()) {
       throw new Error(`You don't own token ${params.tokenId}. Current owner: ${tokenInfo.owner}`);
     }
 
     // Transfer the token
     console.log('\nExecuting transfer...');
-    const txHash = await client.transfer(params.tokenId!, params.recipientAddress!);
+    const txHash = await agentNFTClient.transfer(params.tokenId!, params.recipientAddress!);
     
     console.log('\n✅ Transfer successful!');
     console.log(`Transaction Hash: ${txHash}`);
 
     // Verify transfer
     console.log('\nVerifying transfer...');
-    const updatedTokenInfo = await client.getTokenInfo(params.tokenId!);
+    const updatedTokenInfo = await agentNFTClient.getTokenInfo(params.tokenId!);
     console.log(`New owner: ${updatedTokenInfo.owner}`);
     
     if (updatedTokenInfo.owner.toLowerCase() === params.recipientAddress!.toLowerCase()) {

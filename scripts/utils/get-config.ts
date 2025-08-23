@@ -1,22 +1,85 @@
 import * as dotenv from 'dotenv';
+import * as fs from 'fs';
+import * as path from 'path';
 import { getDeployedAddresses } from './get-contract-addresses';
-import {StorageConfig} from "../../shared/lib/types";
+import {ZGStorageConfig} from "../../shared/lib/services/storage/ZGStorageService";
+import {LocalStorageConfig} from "../../shared/lib/services/storage/LocalStorageService";
 
-dotenv.config();
+// Enhanced environment loading with support for multiple environments
+function loadEnvironment() {
+  // Check for environment parameter in command line args
+  const args = process.argv.slice(2);
+  let envArg = args.find(arg => arg.startsWith('--env='))?.split('=')[1];
+  if (!envArg) {
+    const envIndex = args.indexOf('--env');
+    if (envIndex !== -1 && args[envIndex + 1]) {
+      envArg = args[envIndex + 1];
+    }
+  }
+  
+  // Check for config file parameter
+  let configArg = args.find(arg => arg.startsWith('--config='))?.split('=')[1];
+  if (!configArg) {
+    const configIndex = args.indexOf('--config');
+    if (configIndex !== -1 && args[configIndex + 1]) {
+      configArg = args[configIndex + 1];
+    }
+  }
+  
+  // Determine environment file to load
+  let envFile = '.env'; // default
+  
+  if (configArg) {
+    // Direct config file specification
+    envFile = configArg;
+  } else if (envArg) {
+    // Environment name specification
+    envFile = `.env.${envArg}`;
+  } else if (process.env.NODE_ENV) {
+    // Environment variable specification
+    const testFile = `.env.${process.env.NODE_ENV}`;
+    if (fs.existsSync(testFile)) {
+      envFile = testFile;
+    }
+  }
+  
+  // Load base .env file first (as fallback)
+  const baseEnvPath = path.resolve(process.cwd(), '.env');
+  if (fs.existsSync(baseEnvPath)) {
+    dotenv.config({ path: baseEnvPath });
+  }
+  
+  // Load specific environment file to override base settings
+  if (envFile !== '.env') {
+    const envPath = path.resolve(process.cwd(), envFile);
+    if (fs.existsSync(envPath)) {
+      console.log(`🌍 Loading environment: ${envFile} (inheriting from .env)`);
+
+      // Load again with override to apply specific env values
+      dotenv.config({ path: envPath, override: true });
+    } else {
+      console.warn(`⚠️  Environment file not found: ${envFile}, using .env only`);
+    }
+  } else {
+    console.log(`🌍 Loading environment from: .env`);
+  }
+}
+
+// Load environment on import
+loadEnvironment();
 
 /**
  * 共享配置管理器 - 所有脚本通用的环境变量和配置
  */
 export interface NetworkConfig {
   rpcUrl: string;
-  indexerUrl: string;
   chainId: number;
   explorerUrl?: string;
 }
 
 export interface ContractConfig {
   agentNFTAddress: string;
-  verifierAddress?: string;
+  verifierAddress: string;
 }
 
 export interface WalletConfig {
@@ -24,25 +87,28 @@ export interface WalletConfig {
   address?: string;
 }
 
+export interface StorageConfig {
+  zg: ZGStorageConfig
+  local: LocalStorageConfig
+}
+
 export interface ScriptConfig {
   network: NetworkConfig;
   contracts: ContractConfig;
   wallet: WalletConfig;
-  ogStorage: StorageConfig;
+  storage: StorageConfig
 }
 
 /**
  * 获取网络配置
  */
 export function getNetworkConfig(): NetworkConfig {
-  const chainId = parseInt(process.env.ZG_CHAIN_ID || '16601');
+  const chainId = parseInt(process.env.CHAIN_ID || process.env.ZG_CHAIN_ID || '16601');
   const rpcUrl = process.env.RPC_URL || process.env.ZG_RPC_URL || 'https://evmrpc-testnet.0g.ai/';
-  const indexerUrl = process.env.ZG_INDEXER_URL || 'https://indexer-storage-testnet-turbo.0g.ai/';
-  const explorerUrl = process.env.ZG_EXPLORER_URL || 'https://chainscan-galileo.0g.ai/tx/';
+  const explorerUrl = process.env.EXPLORER_URL || 'https://chainscan-galileo.0g.ai/tx/';
 
   return {
     rpcUrl,
-    indexerUrl,
     chainId,
     explorerUrl
   };
@@ -61,7 +127,7 @@ export function getContractConfig(chainId?: string | number): ContractConfig {
       const addresses = getDeployedAddresses(chainId?.toString() || process.env.ZG_CHAIN_ID || '16601');
 
       agentNFTAddress ||= addresses.agentNFT;
-      verifierAddress ||= addresses.teeVerifier;
+      verifierAddress ||= addresses.teeVerifier || addresses.zkpVerifier;
 
       console.log(`🔍 Auto-detected AgentNFT address: ${agentNFTAddress}`);
     } catch (error) {
@@ -93,13 +159,21 @@ export function getWalletConfig(): WalletConfig {
 /**
  * 获取 0G 存储配置
  */
-export function getOGStorageConfig(): StorageConfig {
+export function getStorageConfig(): {
+  zg: ZGStorageConfig, local: LocalStorageConfig
+} {
   const network = getNetworkConfig();
-  
+
+  const rpcUrl = process.env.ZG_RPCURL_URL || network.rpcUrl;
+  const indexerUrl = process.env.ZG_INDEXER_URL || 'https://indexer-storage-testnet-turbo.0g.ai/';
+
+  const storageDir = process.env.LOCAL_STORAGE_DIR ?? "./temp/local-storage";
+  const enableMetadata = process.env.LOCAL_STORAGE_ENABLE_METADATA === 'true';
+  const enableSubdirectories = process.env.LOCAL_STORAGE_ENABLE_SUBDIRECTORIES === 'true';
+
   return {
-    rpcUrl: network.rpcUrl,
-    indexerUrl: network.indexerUrl,
-    chainId: network.chainId
+    zg: { rpcUrl, indexerUrl },
+    local: { storageDir, enableMetadata, enableSubdirectories }
   };
 }
 
@@ -111,7 +185,7 @@ export function getScriptConfig(options: { requireWallet?: boolean; requireContr
   
   const network = getNetworkConfig();
   const contracts = getContractConfig(network.chainId);
-  const ogStorage = getOGStorageConfig();
+  const storage = getStorageConfig();
   
   // 验证必需的配置
   if (requireContract && !contracts.agentNFTAddress) {
@@ -129,7 +203,7 @@ export function getScriptConfig(options: { requireWallet?: boolean; requireContr
     network,
     contracts,
     wallet,
-    ogStorage
+    storage
   };
 }
 
@@ -160,8 +234,12 @@ export function printConfig(config: ScriptConfig, hidePrivateKey: boolean = true
   console.log('=' .repeat(50));
   console.log(`Network: ${config.network.rpcUrl}`);
   console.log(`Chain ID: ${config.network.chainId}`);
-  console.log(`Indexer: ${config.network.indexerUrl}`);
+  console.log(`ZG Storage RPC Url: ${config.storage.zg.rpcUrl}`)
+  console.log(`ZG Storage Index Url: ${config.storage.zg.indexerUrl}`)
+  console.log(`Local Storage Dir: ${config.storage.local.storageDir}`)
+
   console.log(`AgentNFT: ${config.contracts.agentNFTAddress}`);
+  console.log(`Verifier: ${config.contracts.verifierAddress}`);
   
   if (config.wallet.privateKey && !hidePrivateKey) {
     console.log(`Private Key: ${config.wallet.privateKey}`);

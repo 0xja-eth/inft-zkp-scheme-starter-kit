@@ -1,4 +1,4 @@
-import { FileEncryptionProofGenerator } from "../shared/lib/services/crypto/zkp/FileEncryptionProofGenerator";
+import { PreimageProofGenerator } from "../shared/lib/services/crypto/zkp/PreimageProofGenerator";
 import { StreamCipherEncryptionService } from "../shared/lib/services/crypto/encryption/StreamCipherEncryptionService";
 import * as fs from "fs";
 import * as path from "path";
@@ -6,7 +6,7 @@ import * as path from "path";
 async function testStreamEncZKP() {
   console.log("🚀 Testing StreamEncVerify ZK Proof System");
   
-  const prover = new FileEncryptionProofGenerator();
+  const prover = new PreimageProofGenerator();
   const encService = new StreamCipherEncryptionService();
   
   // Check if circuit is ready

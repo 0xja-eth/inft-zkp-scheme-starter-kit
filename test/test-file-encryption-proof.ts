@@ -1,6 +1,6 @@
 #!/usr/bin/env npx ts-node
 
-import { FileEncryptionProofGenerator } from '../shared/lib/services/crypto/zkp/FileEncryptionProofGenerator';
+import { PreimageProofGenerator } from '../shared/lib/services/crypto/zkp/PreimageProofGenerator';
 import * as crypto from 'crypto';
 import * as path from 'path';
 
@@ -8,7 +8,7 @@ async function testFileEncryptionProof() {
   console.log('🧪 Testing File Encryption ZK Proof Generator...\n');
 
   try {
-    const generator = new FileEncryptionProofGenerator();
+    const generator = new PreimageProofGenerator();
 
     // 1. 生成基本测试用例
     console.log('1️⃣ Generating Basic Test Case...');

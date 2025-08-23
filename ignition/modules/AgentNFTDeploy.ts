@@ -7,11 +7,14 @@ const AgentNFTDeployModule = buildModule("AgentNFTDeployModule", (m) => {
   const nftSymbol = m.getParameter("nftSymbol", process.env.ZG_NFT_SYMBOL || "A0GIA");
   const chainURL = m.getParameter("chainURL", process.env.ZG_RPC_URL || "https://evmrpc-testnet.0g.ai");
   const indexerURL = m.getParameter("indexerURL", process.env.ZG_INDEXER_URL || "https://indexer-storage-testnet-turbo.0g.ai");
-  const initialVerifierAddress = m.getParameter("initialVerifierAddress", "0x0000000000000000000000000000000000000000");
 
-  // 2. Deploy TEEVerifier first
-  const teeVerifier = m.contract("TEEVerifier", [initialVerifierAddress], {
-    id: "TEEVerifier",
+  // 2. Deploy ZKPVerifier first
+  const preimageVerifier = m.contract("PreimageVerifier", [], {
+    id: "PreimageVerifier",
+  });
+  const transferVerifier = ""; // TODO: Transfer Verifier
+  const verifier = m.contract("ZKPVerifier", [preimageVerifier, preimageVerifier], {
+    id: "ZKPVerifier",
   });
 
   // 3. Deploy AgentNFT implementation
@@ -29,13 +32,13 @@ const AgentNFTDeployModule = buildModule("AgentNFTDeployModule", (m) => {
   // Note: In Ignition, we need to encode the initialization data manually
   const initializationData = m.encodeFunctionCall(agentNFTImpl, "initialize", [
     nftName,
-    nftSymbol, 
-    teeVerifier,
+    nftSymbol,
+    verifier,
     chainURL,
     indexerURL
   ], {
     id: "encodeInitData",
-    after: [teeVerifier, agentNFTBeacon],
+    after: [verifier, agentNFTBeacon],
   });
 
   // 6. Deploy BeaconProxy with initialization data
@@ -46,7 +49,7 @@ const AgentNFTDeployModule = buildModule("AgentNFTDeployModule", (m) => {
 
   // 7. Return all deployed contracts
   return {
-    teeVerifier,
+    verifier,
     agentNFTImpl,
     agentNFTBeacon,
     agentNFTProxy,

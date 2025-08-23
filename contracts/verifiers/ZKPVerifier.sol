@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.28;
 
 import "./base/BaseVerifier.sol";
 import "../interfaces/IGroth16Verifier.sol";
@@ -49,25 +49,19 @@ contract ZKPVerifier is BaseVerifier, Ownable {
             bytes16 sealedKey;
             uint256 nonce;
             uint256 mac;
-            uint[2] memory a;
-            uint[2][2] memory b;
-            uint[2] memory c;
+            uint256[2] memory a;
+            uint256[2][2] memory b;
+            uint256[2] memory c;
 
-            // 使用 assembly 从 bytes 中按偏移量读取数据
             assembly {
-                // bytes 数据的起始位置 = proof.offset
-                let ptr := add(proof.offset, 0x20) // calldata 前 32 字节是 length
+                // 直接从 calldata 按偏移读取
+                dataHash := calldataload(proof.offset)                      // 0..31
+                sealedKey := calldataload(add(proof.offset, 32))            // 32..47
+                nonce := calldataload(add(proof.offset, 48))                // 48..79
+                mac := calldataload(add(proof.offset, 80))                  // 80..111
 
-                dataHash := calldataload(proof.offset)             // 0 ~ 32
-                sealedKey := calldataload(add(proof.offset, 32))   // 32 ~ 48
-                nonce := calldataload(add(proof.offset, 48))       // 48 ~ 80
-                mac := calldataload(add(proof.offset, 80))         // 80 ~ 112
-
-                a_0 := calldataload(add(proof.offset, 112))
-                a_1 := calldataload(add(proof.offset, 144))
-
-                mstore(a, a_0)
-                mstore(add(a, 0x20), a_1)
+                mstore(a, calldataload(add(proof.offset, 112)))             // a[0] 112..143
+                mstore(add(a, 0x20), calldataload(add(proof.offset, 144)))  // a[1] 144..175
 
                 mstore(b, calldataload(add(proof.offset, 176)))
                 mstore(add(b, 0x20), calldataload(add(proof.offset, 208)))
@@ -82,9 +76,7 @@ contract ZKPVerifier is BaseVerifier, Ownable {
             if (preimageVerifier != address(0)) {
                 IGroth16Verifier verifier = IGroth16Verifier(preimageVerifier);
 
-                uint[] memory publicInputs = new uint[](2);
-                publicInputs[0] = nonce;
-                publicInputs[1] = mac;
+                uint256[2] memory publicInputs = [nonce, mac];
 
                 isValid = verifier.verifyProof(a, b, c, publicInputs);
             }

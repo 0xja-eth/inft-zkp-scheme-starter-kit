@@ -37,31 +37,6 @@ export interface DecryptedMetadata {
   isValid: boolean;
 }
 
-export interface EncryptionConfig {
-  algorithm: 'aes-256-gcm';
-  keyDerivation: 'pbkdf2';
-  iterations: number;
-  keyLength: number;
-  ivLength: number;
-  tagLength: number;
-}
-
-export interface FallbackConfig {
-  enableFallback: boolean;
-  localStorageDir: string;
-  retryAttempts: number;
-  retryDelay: number;
-  preferLocal: boolean;
-}
-
-export interface StorageConfig {
-  rpcUrl: string;
-  indexerUrl: string;
-  chainId: number;
-
-  fallback?: Partial<FallbackConfig>;
-}
-
 export interface ProofData {
   oldDataHash: string;
   newDataHash: string;

@@ -1,7 +1,12 @@
 import { StorageService, StorageOptions } from './StorageService';
-import { StorageResult, StorageConfig } from '../../types';
+import { StorageResult } from '../../types';
 import { Indexer, MemData } from "@0glabs/0g-ts-sdk";
 import { Wallet } from "ethers";
+
+export interface ZGStorageConfig {
+  rpcUrl: string;
+  indexerUrl: string;
+}
 
 /**
  * 0G分布式存储服务实现
@@ -15,15 +20,15 @@ import { Wallet } from "ethers";
  * 5. 自动fallback - 继承基类的fallback和超时机制
  */
 export class ZGStorageService extends StorageService {
-  private config: StorageConfig;
+  private wallet: Wallet;
   private indexer: Indexer;
-  private signer: Wallet;
+  private config: ZGStorageConfig
 
-  constructor(signer: Wallet, config: StorageConfig, options: StorageOptions = {}) {
+  constructor(wallet: Wallet, config: ZGStorageConfig, options: StorageOptions = {}) {
     super(options);
     
     this.indexer = new Indexer(config.indexerUrl);
-    this.signer = signer;
+    this.wallet = wallet;
     this.config = config;
 
     console.log(`🌐 0G Storage Service initialized`);
@@ -62,7 +67,7 @@ export class ZGStorageService extends StorageService {
     const [txHash, uploadErr] = await this.indexer.upload(
       file, 
       this.config.rpcUrl, 
-      this.signer
+      this.wallet
     );
 
     if (uploadErr !== null) {

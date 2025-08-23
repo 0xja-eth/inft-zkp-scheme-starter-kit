@@ -12,20 +12,6 @@ export class MetadataManager {
     this.crypto = cryptoService;
   }
 
-  defaultMetadata(): Metadata {
-    return {
-      name: "",
-      description: "",
-      avatar: "",
-      externalUrl: "",
-      version: "",
-      model: "",
-      personality: "",
-      capabilities: [],
-      attributes: {}
-    };
-  }
-
   /**
    * Create AI Agent metadata and store it encrypted
    */

@@ -5,7 +5,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 export interface LocalStorageConfig {
-  storageDir?: string;
+  storageDir: string;
   enableMetadata?: boolean;
   enableSubdirectories?: boolean;
 }
@@ -25,11 +25,11 @@ export interface LocalStorageConfig {
 export class LocalStorageService extends StorageService {
   private config: Required<LocalStorageConfig>;
 
-  constructor(config: LocalStorageConfig = {}, options: StorageOptions = {}) {
+  constructor(config: LocalStorageConfig, options: StorageOptions = {}) {
     super(options);
     
     this.config = {
-      storageDir: config.storageDir ?? process.env.DEFAULE_LOCAL_STORAGE_DIR ?? "./temp/local-storage",
+      storageDir: config.storageDir,
       enableMetadata: config.enableMetadata ?? true,
       enableSubdirectories: config.enableSubdirectories ?? true,
     };

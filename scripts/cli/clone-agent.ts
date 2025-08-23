@@ -1,12 +1,10 @@
-import { ethers } from 'ethers';
-import { AgentNFTClient } from '../../shared/lib/AgentNFTClient';
-import { getScriptConfig, getScriptParams, printConfig } from '../utils/get-config';
+import { getScriptParams } from '../utils/get-config';
+import { initializeAgentClient } from '../utils/init-client';
 
 async function main() {
   try {
-    // 获取配置
-    console.log('🔍 Loading configuration...');
-    const config = getScriptConfig({ requireWallet: true, requireContract: true });
+    // Initialize client and get parameters
+    const { agentNFTClient, wallet } = initializeAgentClient();
     const params = getScriptParams();
     
     // 验证参数
@@ -17,40 +15,17 @@ async function main() {
       process.exit(1);
     }
 
-    // 打印配置信息
-    printConfig(config);
-
-    // Setup provider and client
-    const provider = new ethers.JsonRpcProvider(config.network.rpcUrl);
-
-    const encryptionConfig = {
-      algorithm: 'aes-256-gcm' as const,
-      keyDerivation: 'pbkdf2' as const,
-      iterations: 100000,
-      keyLength: 32,
-      ivLength: 12,
-      tagLength: 16,
-    };
-
-    const client = new AgentNFTClient(
-      config.contracts.agentNFTAddress,
-      config.wallet.privateKey,
-      provider,
-      config.ogStorage
-    );
-
     console.log(`Starting clone process...`);
     console.log(`Source Token ID: ${params.tokenId}`);
     console.log(`Recipient: ${params.recipientAddress}`);
 
     // Check current owner
     console.log('\nChecking source token ownership...');
-    const tokenInfo = await client.getTokenInfo(params.tokenId!);
+    const tokenInfo = await agentNFTClient.getTokenInfo(params.tokenId!);
     console.log(`Current owner: ${tokenInfo.owner}`);
     console.log(`Data descriptions: ${tokenInfo.dataDescriptions.join(', ')}`);
     
-    const wallet = new ethers.Wallet(config.wallet.privateKey);
-    if (tokenInfo.owner.toLowerCase() !== wallet.address.toLowerCase()) {
+    if (tokenInfo.owner.toLowerCase() !== wallet!.address.toLowerCase()) {
       throw new Error(`You don't own token ${params.tokenId}. Current owner: ${tokenInfo.owner}`);
     }
 
@@ -68,7 +43,7 @@ async function main() {
     console.log('\nExecuting clone with modifications...');
     console.log('Modifications:', JSON.stringify(modifications, null, 2));
     
-    const result = await client.clone(params.tokenId!, params.recipientAddress!, modifications);
+    const result = await agentNFTClient.clone(params.tokenId!, params.recipientAddress!, modifications);
     
     console.log('\n✅ Clone successful!');
     console.log(`New Token ID: ${result.newTokenId}`);
@@ -76,7 +51,7 @@ async function main() {
 
     // Verify clone
     console.log('\nVerifying clone...');
-    const clonedTokenInfo = await client.getTokenInfo(result.newTokenId);
+    const clonedTokenInfo = await agentNFTClient.getTokenInfo(result.newTokenId);
     console.log(`Clone owner: ${clonedTokenInfo.owner}`);
     console.log(`Clone data descriptions: ${clonedTokenInfo.dataDescriptions.join(', ')}`);
     

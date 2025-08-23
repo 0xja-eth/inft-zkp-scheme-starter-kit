@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.28;
 
 import {AccessControlEnumerableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlEnumerableUpgradeable.sol";
 import {IERC7857} from "./interfaces/IERC7857.sol";
@@ -32,6 +32,7 @@ contract AgentNFT is
         address owner;
         string[] dataDescriptions;
         bytes32[] dataHashes;
+        bytes16[] sealedKeys;
         address[] authorizedUsers;
     }
 
@@ -172,6 +173,7 @@ contract AgentNFT is
         $.tokens[tokenId] = TokenData({
             owner: to,
             dataHashes: dataHashes,
+            sealedKeys: sealedKeys,
             dataDescriptions: dataDescriptions,
             authorizedUsers: new address[](0)
         });
@@ -191,7 +193,7 @@ contract AgentNFT is
     
         TransferValidityProofOutput[] memory proofOupt = $.verifier
             .verifyTransferValidity(proofs);
-        bytes16[] memory sealedKeys = new bytes16[](proofOupt.length);
+        bytes16[] memory newSealedKeys = new bytes16[](proofOupt.length);
         bytes32[] memory newDataHashes = new bytes32[](proofOupt.length);
 
         for (uint i = 0; i < proofOupt.length; i++) {
@@ -206,15 +208,16 @@ contract AgentNFT is
                     )
                 )
             );
-            sealedKeys[i] = proofOupt[i].sealedKey;
+            newSealedKeys[i] = proofOupt[i].sealedKey;
             newDataHashes[i] = proofOupt[i].newDataHash;
         }
 
         $.tokens[tokenId].owner = to;
         $.tokens[tokenId].dataHashes = newDataHashes;
+        $.tokens[tokenId].sealedKeys = newSealedKeys;
 
         emit Transferred(tokenId, msg.sender, to);
-        emit PublishedSealedKey(to, tokenId, sealedKeys);
+        emit PublishedSealedKey(to, tokenId, newSealedKeys);
     }
 
     function transferPublic(address to, uint256 tokenId) external {
@@ -237,7 +240,7 @@ contract AgentNFT is
         TransferValidityProofOutput[] memory proofOupt = $.verifier
             .verifyTransferValidity(proofs);
         bytes32[] memory newDataHashes = new bytes32[](proofOupt.length);
-        bytes16[] memory sealedKeys = new bytes16[](proofOupt.length);
+        bytes16[] memory newSealedKeys = new bytes16[](proofOupt.length);
         
         for (uint i = 0; i < proofOupt.length; i++) {
             require(
@@ -251,7 +254,7 @@ contract AgentNFT is
                     )
                 )
             );
-            sealedKeys[i] = proofOupt[i].sealedKey;
+            newSealedKeys[i] = proofOupt[i].sealedKey;
             newDataHashes[i] = proofOupt[i].newDataHash;
         }
 
@@ -259,12 +262,13 @@ contract AgentNFT is
         $.tokens[newTokenId] = TokenData({
             owner: to,
             dataHashes: newDataHashes,
+            sealedKeys: newSealedKeys,
             dataDescriptions: $.tokens[tokenId].dataDescriptions,
             authorizedUsers: new address[](0)
         });
 
         emit Cloned(tokenId, newTokenId, msg.sender, to);
-        emit PublishedSealedKey(to, newTokenId, sealedKeys);
+        emit PublishedSealedKey(to, newTokenId, newSealedKeys);
         return newTokenId;
     }
 
@@ -280,6 +284,7 @@ contract AgentNFT is
         $.tokens[newTokenId] = TokenData({
             owner: to,
             dataHashes: $.tokens[tokenId].dataHashes,
+            sealedKeys: $.tokens[tokenId].sealedKeys,
             dataDescriptions: $.tokens[tokenId].dataDescriptions,
             authorizedUsers: new address[](0)
         });
@@ -332,6 +337,13 @@ contract AgentNFT is
         TokenData storage token = $.tokens[tokenId];
         require(token.owner != address(0), "Token not exist");
         return token.dataHashes;
+    }
+
+    function sealedKeysOf(uint256 tokenId) public view returns (bytes16[] memory) {
+        AgentNFTStorage storage $ = _getAgentStorage();
+        TokenData storage token = $.tokens[tokenId];
+        require(token.owner != address(0), "Token not exist");
+        return token.sealedKeys;
     }
 
     function dataDescriptionsOf(uint256 tokenId) public view returns (string[] memory) {

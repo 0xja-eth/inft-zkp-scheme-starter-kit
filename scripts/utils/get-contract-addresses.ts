@@ -9,6 +9,7 @@ export interface DeployedAddresses {
   agentNFT: string;
   agentNFTImpl: string;
   teeVerifier: string;
+  zkpVerifier: string;
   agentNFTBeacon: string;
 }
 
@@ -37,6 +38,7 @@ export function getDeployedAddresses(chainId: number | string = 16601): Deployed
     // 其他合约地址
     agentNFTImpl: deployedAddresses['AgentNFTDeployModule#AgentNFTImpl'],
     teeVerifier: deployedAddresses['AgentNFTDeployModule#TEEVerifier'],
+    zkpVerifier: deployedAddresses['AgentNFTDeployModule#ZKPVerifier'],
     agentNFTBeacon: deployedAddresses['AgentNFTDeployModule#AgentNFTBeacon'],
   };
 }

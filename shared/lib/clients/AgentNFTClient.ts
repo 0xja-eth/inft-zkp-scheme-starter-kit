@@ -1,59 +1,63 @@
 import { ethers } from 'ethers';
-import { poseidonAsync, initPoseidon } from './services/crypto/Poseidon';
-import { MetadataManager } from './managers/MetadataManager';
-import { TransferManager } from './managers/TransferManager';
-import { EncryptedMetadataResult, Metadata, StorageConfig} from './types';
-import {ZGStorageService} from "./services/storage/ZGStorageService";
-import {LocalStorageService} from "./services/storage/LocalStorageService";
-import {ZKCryptoService} from "./services/crypto/CryptoServices";
-import {FileEncryptionProofGenerator} from "./services/crypto/zkp/FileEncryptionProofGenerator";
-import {IStorageService} from "./services/storage/StorageService";
-import {CryptoService} from "./services/crypto/ICryptoService";
+import { poseidonAsync, initPoseidon } from '../services/crypto/Poseidon';
+import { MetadataManager } from '../managers/MetadataManager';
+import { TransferManager } from '../managers/TransferManager';
+import { EncryptedMetadataResult, Metadata} from '../types';
+import {ZGStorageService} from "../services/storage/ZGStorageService";
+import {LocalStorageService} from "../services/storage/LocalStorageService";
+import {ZKCryptoService} from "../services/crypto/CryptoServices";
+import {PreimageProofGenerator} from "../services/crypto/zkp/PreimageProofGenerator";
+import {IStorageService} from "../services/storage/StorageService";
+import {CryptoService} from "../services/crypto/ICryptoService";
+import {VerifierClient} from "./VerifierClient";
+import * as sea from "node:sea";
 
 export class AgentNFTClient {
-  private wallet: ethers.Wallet;
+  private wallet?: ethers.Wallet;
   private agentNFT: ethers.Contract;
 
-  private metadataManager: MetadataManager;
-  private transferManager: TransferManager;
+  private metadataManager?: MetadataManager;
+  private transferManager?: TransferManager;
 
-  private storageService: IStorageService;
+  private storageService?: IStorageService;
   private cryptoService: CryptoService;
 
-  private provider: ethers.Provider;
+  private verifierClient?: VerifierClient;
 
   constructor(
-    contractAddress: string,
-    privateKey: string,
-    provider: ethers.Provider,
-    storageConfig: StorageConfig
+    agentNFTAddress: string,
+    verifierClient?: VerifierClient,
+    wallet?: ethers.Wallet,
+    storageService?: IStorageService,
+    cryptoService: CryptoService = new ZKCryptoService()
   ) {
-    this.provider = provider;
-    this.wallet = new ethers.Wallet(privateKey, provider);
+    this.wallet = wallet; // new ethers.Wallet(privateKey, provider);
     
     // Load contract ABI from Hardhat artifacts
-    const AgentNFTArtifact = require('../../artifacts/contracts/AgentNFT.sol/AgentNFT.json');
-    this.agentNFT = new ethers.Contract(contractAddress, AgentNFTArtifact.abi, this.wallet);
+    const AgentNFTArtifact = require('../../../artifacts/contracts/AgentNFT.sol/AgentNFT.json');
+    this.agentNFT = new ethers.Contract(agentNFTAddress, AgentNFTArtifact.abi, this.wallet);
 
     // Initialize services with fallback support
-    this.storageService = new ZGStorageService(this.wallet, storageConfig, {
-      fallbackServices: [new LocalStorageService()]
-    });
-    this.cryptoService = new ZKCryptoService();
+    this.storageService = storageService;
+    this.cryptoService = cryptoService;
 
-    this.metadataManager = new MetadataManager(this.storageService, this.cryptoService);
-    this.transferManager = new TransferManager(this.storageService, this.cryptoService, this.metadataManager);
+    if (this.storageService) {
+      this.metadataManager = new MetadataManager(this.storageService, this.cryptoService);
+      this.transferManager = new TransferManager(this.storageService, this.cryptoService, this.metadataManager);
+    }
+
+    this.verifierClient = verifierClient
   }
 
   async upload(metadata: Metadata): Promise<EncryptedMetadataResult> {
-
-    const recipientPublicKey = this.getPublicKeyFromPrivateKey(this.wallet.privateKey);
+    if (!this.wallet) throw new Error('Wallet not initialized');
+    if (!this.metadataManager) throw new Error('Metadata manager not initialized');
 
     // 1. Create and encrypt AI agent metadata
     console.log('Uploading encrypted AI agent metadata...');
     return await this.metadataManager.uploadAIAgent(
         metadata,
-        recipientPublicKey
+        this.wallet.signingKey.publicKey
     );
   }
 
@@ -66,6 +70,8 @@ export class AgentNFTClient {
     rootHash: string;
     sealedKey: string;
   }> {
+    if (!this.wallet) throw new Error('Wallet not initialized');
+
     try {
       const to = recipientAddress || this.wallet.address;
 
@@ -126,19 +132,23 @@ export class AgentNFTClient {
    * Transfer AgentNFT to another address
    */
   async transfer(tokenId: number, toAddress: string): Promise<string> {
+    if (!this.wallet) throw new Error('Wallet not initialized');
+    if (!this.transferManager) throw new Error('Transfer manager not initialized');
+
     try {
       console.log(`Transferring token ${tokenId} to ${toAddress}...`);
 
-      // 1. Get current token data
-      const tokenData = await this.getTokenData(tokenId);
-      
+      // 1. Get current token data and decrypt it
+      const tokenInfo = await this.getTokenInfo(tokenId);
+      const rootHash = tokenInfo.dataHashes[0];
+
       // 2. Prepare transfer proofs
       const transferResult = await this.transferManager.prepareTransfer(
         tokenId,
         this.wallet.privateKey,
         toAddress,
-        [tokenData.rootHash], // Assuming single data item for simplicity
-        tokenData.dataHashes
+        [rootHash], // Assuming single data item for simplicity
+        tokenInfo.dataHashes
       );
 
       // 3. Execute transfer
@@ -164,19 +174,23 @@ export class AgentNFTClient {
     newTokenId: number;
     txHash: string;
   }> {
+    if (!this.wallet) throw new Error('Wallet not initialized');
+    if (!this.transferManager) throw new Error('Transfer manager not initialized');
+
     try {
       console.log(`Cloning token ${tokenId} for ${toAddress}...`);
 
-      // 1. Get current token data
-      const tokenData = await this.getTokenData(tokenId);
+      // 1. Get current token data and decrypt it
+      const tokenInfo = await this.getTokenInfo(tokenId);
+      const rootHash = tokenInfo.dataHashes[0];
 
       // 2. Prepare clone proofs
       const cloneResult = await this.transferManager.prepareClone(
         tokenId,
         this.wallet.privateKey,
         toAddress,
-        [tokenData.rootHash], // Assuming single data item for simplicity
-        tokenData.dataHashes,
+        [rootHash], // Assuming single data item for simplicity
+        tokenInfo.dataHashes,
         modifications
       );
 
@@ -221,19 +235,23 @@ export class AgentNFTClient {
    * Update AgentNFT data
    */
   async update(tokenId: number, updatedModelData: Partial<Metadata>): Promise<string> {
+    if (!this.wallet) throw new Error('Wallet not initialized');
+    if (!this.metadataManager) throw new Error('Metadata manager not initialized');
+
     try {
       console.log(`Updating token ${tokenId}...`);
 
       // 1. Get current token data and decrypt it
-      const currentTokenData = await this.getTokenData(tokenId);
-      const currentEncryptionKey = await this.getCurrentEncryptionKey(tokenId);
-      
+      const tokenInfo = await this.getTokenInfo(tokenId);
+      const rootHash = tokenInfo.dataHashes[0];
+      const sealedKey = tokenInfo.sealedKeys[0];
+
+      const privateKey = this.wallet.privateKey;
+      const encryptionKey = await this.cryptoService.unsealKey(sealedKey, privateKey)
+
       // 2. Update the metadata
       const updatedResult = await this.metadataManager.updateAIAgent(
-        currentTokenData.rootHash,
-        currentEncryptionKey,
-        updatedModelData,
-        this.getPublicKeyFromPrivateKey(this.wallet.privateKey)
+        rootHash, encryptionKey, updatedModelData, this.wallet.signingKey.publicKey
       );
 
       // 3. Generate proof for updated data
@@ -253,25 +271,116 @@ export class AgentNFTClient {
   /**
    * Get token information
    */
-  async getTokenInfo(tokenId: number): Promise<any> {
+  async getTokenInfo(tokenId: number) {
     try {
-      const [owner, dataHashes, dataDescriptions, authorizedUsers] = await Promise.all([
+      const [owner, dataHashes, sealedKeys, dataDescriptions, authorizedUsers] = await Promise.all([
         this.agentNFT.ownerOf(tokenId),
         this.agentNFT.dataHashesOf(tokenId),
+        this.agentNFT.sealedKeysOf(tokenId),
         this.agentNFT.dataDescriptionsOf(tokenId),
         this.agentNFT.authorizedUsersOf(tokenId),
       ]);
+
+      console.log("Get token info:", {
+        tokenId,
+        owner,
+        dataHashes,
+        sealedKeys,
+        dataDescriptions,
+        authorizedUsers,
+      })
 
       return {
         tokenId,
         owner,
         dataHashes,
+        sealedKeys,
         dataDescriptions,
         authorizedUsers,
       };
     } catch (error: any) {
       throw new Error(`Failed to get token info: ${error.message}`);
     }
+  }
+
+  /**
+   * Get contract information
+   */
+  async getContractInfo(): Promise<{
+    name: string;
+    symbol: string;
+    version: string;
+    verifier: string;
+    address: string;
+  }> {
+    try {
+      const [name, symbol, version, verifier] = await Promise.all([
+        this.agentNFT.name(),
+        this.agentNFT.symbol(),
+        this.agentNFT.VERSION(),
+        this.agentNFT.verifier(),
+      ]);
+
+      return {
+        name,
+        symbol,
+        version,
+        verifier,
+        address: await this.agentNFT.getAddress(),
+      };
+    } catch (error: any) {
+      throw new Error(`Failed to get contract info: ${error.message}`);
+    }
+  }
+
+  /**
+   * Check if token exists
+   */
+  async tokenExists(tokenId: number): Promise<boolean> {
+    try {
+      await this.agentNFT.ownerOf(tokenId);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
+   * Get all existing tokens (limited scan)
+   */
+  async getExistingTokens(maxTokenId: number = 100): Promise<number[]> {
+    const tokens: number[] = [];
+    
+    for (let i = 1; i <= maxTokenId; i++) {
+      try {
+        await this.agentNFT.ownerOf(i);
+        tokens.push(i);
+      } catch (error) {
+        // Token doesn't exist, continue scanning
+      }
+    }
+    
+    return tokens;
+  }
+
+  /**
+   * Get tokens owned by specific address
+   */
+  async getOwnedTokens(ownerAddress: string, maxTokenId: number = 100): Promise<number[]> {
+    const ownedTokens: number[] = [];
+    
+    for (let i = 1; i <= maxTokenId; i++) {
+      try {
+        const owner = await this.agentNFT.ownerOf(i);
+        if (owner.toLowerCase() === ownerAddress.toLowerCase()) {
+          ownedTokens.push(i);
+        }
+      } catch (error) {
+        // Token doesn't exist
+      }
+    }
+    
+    return ownedTokens;
   }
 
   /**
@@ -294,12 +403,17 @@ export class AgentNFTClient {
    * This is a simplified implementation - in production, this would involve TEE/ZKP
    */
   private async generatePreimageProof(metadata: Metadata, encryptedResult: EncryptedMetadataResult): Promise<string> {
+    if (!this.wallet) throw new Error('Wallet not initialized');
+    if (!this.verifierClient) throw new Error('Verify client not initialized');
+
     try {
       const privateKey = this.wallet.privateKey;
       const sealedKey = encryptedResult.sealedKey;
       const key = await this.cryptoService.unsealKey(sealedKey, privateKey)
 
-      const proofGenerator = new FileEncryptionProofGenerator();
+      await this.verifierClient.verifyAndSubmitRootHash(encryptedResult)
+
+      const proofGenerator = new PreimageProofGenerator();
 
       const { proof, publicSignals } = await proofGenerator.generateProof(
           JSON.stringify(metadata), key, encryptedResult.encryptedData
@@ -308,14 +422,16 @@ export class AgentNFTClient {
 
       // Create proof buffer compatible with Solidity verifyPreimage function
       // Format: dataHash(32) + sealedKey(16) + nonce(32) + mac(32) + groth16Proof(256) = 368 bytes
-      
+
       const proofData = this.createPreimageProofBuffer(
         dataHash,
-        sealedKey, 
+        sealedKey,
         publicSignals,
         proof
       );
-      
+
+      console.log(`Proof: ${proofData}`);
+
       return proofData;
     } catch (error: any) {
       throw new Error(`Failed to generate preimage proof: ${error.message}`);
@@ -438,40 +554,4 @@ export class AgentNFTClient {
     return proofBytes;
   }
 
-  /**
-   * Get current encryption key for a token (simplified for demo)
-   */
-  private async getCurrentEncryptionKey(tokenId: number): Promise<Buffer> {
-    // In production, this would:
-    // 1. Get the sealed key from contract events or storage
-    // 2. Unseal it using the owner's private key
-    
-    // For demo, generate a deterministic key
-    const keyMaterial = `${this.wallet.privateKey}-${tokenId}`;
-    return Buffer.from(ethers.keccak256(ethers.toUtf8Bytes(keyMaterial)).slice(2), 'hex');
-  }
-
-  /**
-   * Get token data including rootHash (simplified)
-   */
-  private async getTokenData(tokenId: number): Promise<{ rootHash: string; dataHashes: string[] }> {
-    const dataHashes = await this.agentNFT.dataHashesOf(tokenId);
-    
-    // In production, you would map dataHashes back to rootHashes
-    // For demo, assume first dataHash corresponds to rootHash
-    const rootHash = dataHashes[0] || ethers.ZeroHash;
-    
-    return {
-      rootHash,
-      dataHashes,
-    };
-  }
-
-  /**
-   * Get public key from private key
-   */
-  private getPublicKeyFromPrivateKey(privateKey: string): string {
-    const signingKey = new ethers.SigningKey(privateKey);
-    return signingKey.publicKey;
-  }
 }

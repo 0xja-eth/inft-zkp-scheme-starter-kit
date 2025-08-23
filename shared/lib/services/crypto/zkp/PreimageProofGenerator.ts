@@ -7,13 +7,13 @@ import {StreamCipherEncryptionService} from "../encryption/StreamCipherEncryptio
  * File encryption ZK proof generator using StreamEncVerify circuit
  * Generates proofs for file encryption verification
  */
-export class FileEncryptionProofGenerator {
+export class PreimageProofGenerator {
   private readonly circuitWasmPath: string;
   private readonly circuitZkeyPath: string;
 
   private encryptionService = new StreamCipherEncryptionService();
 
-  constructor(buildDir: string = "/Users/jarei/Desktop/Paratrix/AI/0g-study/0g-inft-starter-kit/build") {
+  constructor(buildDir: string = "./build") {
     this.circuitWasmPath = path.join(buildDir, "StreamEncVerify.wasm");
     this.circuitZkeyPath = path.join(buildDir, "stream_enc_verify_final.zkey");
   }
