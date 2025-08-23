@@ -7,17 +7,7 @@ import { initializeAgentClient } from '../utils/init-client';
  */
 async function main() {
   try {
-    // 获取配置（查询操作不需要私钥）
-    console.log('🔍 Loading configuration...');
-    const config = getScriptConfig({ requireWallet: false, requireContract: true });
-    
-    // 打印配置信息
-    printConfig(config);
-    
-    // 如果有私钥，使用 AgentNFTClient；否则直接使用 provider
-    const hasPrivateKey = process.env.PRIVATE_KEY && process.env.PRIVATE_KEY.length > 0;
-
-    const { provider, agentNFTClient, wallet } = initializeAgentClient(!!hasPrivateKey);
+    const { provider, agentNFTClient, wallet } = initializeAgentClient(false);
 
     // 获取合约信息
     console.log('\n📄 Contract Information:');

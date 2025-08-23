@@ -9,10 +9,10 @@ import {ZKCryptoService} from "../../shared/lib/services/crypto/CryptoServices";
 /**
  * Initialize AgentNFTClient with standard setup (based on mint-agent.ts pattern)
  */
-export function initializeAgentClient(hasPrivateKey = true) {
+export function initializeAgentClient(requireWallet = true) {
   // Get configuration
   console.log('🔍 Loading configuration...');
-  const config = getScriptConfig({ requireWallet: true, requireContract: true });
+  const config = getScriptConfig({ requireWallet, requireContract: true });
   
   // Print configuration
   printConfig(config);
@@ -20,7 +20,7 @@ export function initializeAgentClient(hasPrivateKey = true) {
   // Setup provider and wallet
   const provider = new ethers.JsonRpcProvider(config.network.rpcUrl);
 
-  const wallet = hasPrivateKey ? new ethers.Wallet(config.wallet.privateKey, provider) : undefined;
+  const wallet = config.wallet.privateKey ? new ethers.Wallet(config.wallet.privateKey, provider) : undefined;
 
   // Setup services
   const zgStorage = wallet ? new ZGStorageService(
