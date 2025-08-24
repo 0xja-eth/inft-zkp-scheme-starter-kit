@@ -88,7 +88,7 @@ export interface WalletConfig {
 }
 
 export interface StorageConfig {
-  zg: ZGStorageConfig
+  zg?: ZGStorageConfig
   local: LocalStorageConfig
 }
 
@@ -103,8 +103,8 @@ export interface ScriptConfig {
  * 获取网络配置
  */
 export function getNetworkConfig(): NetworkConfig {
-  const chainId = parseInt(process.env.CHAIN_ID || process.env.ZG_CHAIN_ID || '16601');
-  const rpcUrl = process.env.RPC_URL || process.env.ZG_RPC_URL || 'https://evmrpc-testnet.0g.ai/';
+  const chainId = parseInt(process.env.CHAIN_ID || '16601');
+  const rpcUrl = process.env.RPC_URL || 'https://evmrpc-testnet.0g.ai/';
   const explorerUrl = process.env.EXPLORER_URL || 'https://chainscan-galileo.0g.ai/tx/';
 
   return {
@@ -159,17 +159,22 @@ export function getWalletConfig(): WalletConfig {
 /**
  * 获取 0G 存储配置
  */
-export function getStorageConfig(): {
-  zg: ZGStorageConfig, local: LocalStorageConfig
-} {
+export function getStorageConfig(): StorageConfig {
   const network = getNetworkConfig();
 
-  const rpcUrl = process.env.ZG_RPCURL_URL || network.rpcUrl;
-  const indexerUrl = process.env.ZG_INDEXER_URL || 'https://indexer-storage-testnet-turbo.0g.ai/';
+  const disableZG = process.env.ZG_DISABLE?.toLowerCase() === "true";
 
   const storageDir = process.env.LOCAL_STORAGE_DIR ?? "./temp/local-storage";
-  const enableMetadata = process.env.LOCAL_STORAGE_ENABLE_METADATA === 'true';
-  const enableSubdirectories = process.env.LOCAL_STORAGE_ENABLE_SUBDIRECTORIES === 'true';
+  const enableMetadata = process.env.LOCAL_STORAGE_ENABLE_METADATA?.toLowerCase() === 'true';
+  const enableSubdirectories = process.env.LOCAL_STORAGE_ENABLE_SUBDIRECTORIES?.toLowerCase() === 'true';
+
+  if (disableZG)
+    return {
+      local: { storageDir, enableMetadata, enableSubdirectories }
+    };
+
+  const rpcUrl = process.env.ZG_RPC_URL || network.rpcUrl;
+  const indexerUrl = process.env.ZG_INDEXER_URL || 'https://indexer-storage-testnet-turbo.0g.ai/';
 
   return {
     zg: { rpcUrl, indexerUrl },
@@ -234,8 +239,8 @@ export function printConfig(config: ScriptConfig, hidePrivateKey: boolean = true
   console.log('=' .repeat(50));
   console.log(`Network: ${config.network.rpcUrl}`);
   console.log(`Chain ID: ${config.network.chainId}`);
-  console.log(`ZG Storage RPC Url: ${config.storage.zg.rpcUrl}`)
-  console.log(`ZG Storage Index Url: ${config.storage.zg.indexerUrl}`)
+  console.log(`ZG Storage RPC Url: ${config.storage.zg?.rpcUrl}`)
+  console.log(`ZG Storage Index Url: ${config.storage.zg?.indexerUrl}`)
   console.log(`Local Storage Dir: ${config.storage.local.storageDir}`)
 
   console.log(`AgentNFT: ${config.contracts.agentNFTAddress}`);

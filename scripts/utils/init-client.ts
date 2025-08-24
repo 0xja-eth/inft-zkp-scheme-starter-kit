@@ -23,11 +23,13 @@ export function initializeAgentClient(requireWallet = true) {
   const wallet = config.wallet.privateKey ? new ethers.Wallet(config.wallet.privateKey, provider) : undefined;
 
   // Setup services
-  const zgStorage = wallet ? new ZGStorageService(
-      wallet, config.storage.zg, {
-        fallbackServices: [ new LocalStorageService(config.storage.local) ]
-      }
-  ) : undefined;
+  const storage = wallet ?
+      config.storage.zg ?
+          new ZGStorageService(wallet, config.storage.zg, {
+            fallbackServices: [ new LocalStorageService(config.storage.local) ]
+          }) :
+          new LocalStorageService(config.storage.local) :
+      undefined;
   const zkCrypto = new ZKCryptoService()
 
   // Setup clients
@@ -36,7 +38,7 @@ export function initializeAgentClient(requireWallet = true) {
   ) : undefined;
 
   const agentNFTClient = new AgentNFTClient(
-    config.contracts.agentNFTAddress, verifierClient, wallet, zgStorage, zkCrypto
+    config.contracts.agentNFTAddress, verifierClient, wallet, storage, zkCrypto
   );
 
   return {
