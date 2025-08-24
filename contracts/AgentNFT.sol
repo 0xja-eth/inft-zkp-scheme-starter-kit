@@ -32,7 +32,7 @@ contract AgentNFT is
         address owner;
         string[] dataDescriptions;
         bytes32[] dataHashes;
-        bytes16[] sealedKeys;
+        bytes[] sealedKeys;
         address[] authorizedUsers;
     }
 
@@ -151,7 +151,7 @@ contract AgentNFT is
         PreimageProofOutput[] memory proofOupt = $.verifier.verifyPreimage(proofs);
 
         bytes32[] memory dataHashes = new bytes32[](proofOupt.length);
-        bytes16[] memory sealedKeys = new bytes16[](proofOupt.length);
+        bytes[] memory sealedKeys = new bytes[](proofOupt.length);
 
         for (uint i = 0; i < proofOupt.length; i++) {
             require(
@@ -193,7 +193,7 @@ contract AgentNFT is
     
         TransferValidityProofOutput[] memory proofOupt = $.verifier
             .verifyTransferValidity(proofs);
-        bytes16[] memory newSealedKeys = new bytes16[](proofOupt.length);
+        bytes[] memory newSealedKeys = new bytes[](proofOupt.length);
         bytes32[] memory newDataHashes = new bytes32[](proofOupt.length);
 
         for (uint i = 0; i < proofOupt.length; i++) {
@@ -240,7 +240,7 @@ contract AgentNFT is
         TransferValidityProofOutput[] memory proofOupt = $.verifier
             .verifyTransferValidity(proofs);
         bytes32[] memory newDataHashes = new bytes32[](proofOupt.length);
-        bytes16[] memory newSealedKeys = new bytes16[](proofOupt.length);
+        bytes[] memory newSealedKeys = new bytes[](proofOupt.length);
         
         for (uint i = 0; i < proofOupt.length; i++) {
             require(
@@ -339,7 +339,7 @@ contract AgentNFT is
         return token.dataHashes;
     }
 
-    function sealedKeysOf(uint256 tokenId) public view returns (bytes16[] memory) {
+    function sealedKeysOf(uint256 tokenId) public view returns (bytes[] memory) {
         AgentNFTStorage storage $ = _getAgentStorage();
         TokenData storage token = $.tokens[tokenId];
         require(token.owner != address(0), "Token not exist");

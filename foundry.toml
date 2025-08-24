@@ -1,0 +1,60 @@
+[profile.default]
+# 源代码目录
+src = "contracts"
+# 测试目录
+test = "foundry-test"
+# 脚本目录
+script = "foundry-script"
+# 输出目录
+out = "foundry-out"
+# 缓存目录
+cache_path = "foundry-cache"
+# 库目录
+libs = ["node_modules", "lib"]
+
+# Solidity 编译器版本
+solc_version = "0.8.28"
+# 优化器设置
+optimizer = true
+optimizer_runs = 200
+
+# 自动检测 remappings
+auto_detect_remappings = true
+
+# 常用的 remappings
+remappings = [
+    "@openzeppelin/contracts/=node_modules/@openzeppelin/contracts/",
+    "@openzeppelin/contracts-upgradeable/=node_modules/@openzeppelin/contracts-upgradeable/",
+]
+
+# EVM 版本
+evm_version = "paris"
+
+# 详细输出
+verbosity = 2
+
+# 测试配置
+[profile.default.fuzz]
+runs = 256
+
+# 不变量测试配置
+[profile.default.invariant]
+runs = 256
+depth = 15
+fail_on_revert = false
+
+# RPC 端点配置
+[rpc_endpoints]
+localhost = "http://127.0.0.1:8545"
+zg_testnet = "https://evmrpc-testnet.0g.ai/"
+
+# 以太坊扫描配置 (0G 网络使用自己的浏览器)
+[etherscan]
+zg_testnet = { key = "no-key-needed", url = "https://chainscan-galileo.0g.ai/api" }
+
+# 格式化配置
+[fmt]
+line_length = 100
+tab_width = 4
+bracket_spacing = true
+int_types = "long"

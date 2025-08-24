@@ -4,9 +4,20 @@ pragma solidity ^0.8.20;
 // TODO: Add proof type:
 // 1. TEE proof
 // 2. ZKP proof
+//struct PreimageProofOutput {
+//    bytes32 dataHash;
+//    bytes sealedKey;
+//    bool isValid;
+//}
 struct PreimageProofOutput {
     bytes32 dataHash;
-    bytes16 sealedKey;
+    bytes sealedKey;
+    uint256 nonce;
+    uint256 mac;
+    uint256[2] a;
+    uint256[2][2] b;
+    uint256[2] c;
+    address verifier;
     bool isValid;
 }
 
@@ -14,7 +25,7 @@ struct TransferValidityProofOutput {
     bytes32 oldDataHash;
     bytes32 newDataHash;
     bytes pubKey;
-    bytes16 sealedKey;
+    bytes sealedKey;
     bool isValid;
 }
 

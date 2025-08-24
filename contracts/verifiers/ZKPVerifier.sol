@@ -43,34 +43,56 @@ contract ZKPVerifier is BaseVerifier, Ownable {
 
         for (uint256 i = 0; i < proofs.length; i++) {
             bytes calldata proof = proofs[i];
-            require(proof.length >= 368, "Invalid proof length");
+            require(proof.length >= 456, "Invalid proof length");
 
-            bytes32 dataHash;
-            bytes16 sealedKey;
-            uint256 nonce;
-            uint256 mac;
-            uint256[2] memory a;
-            uint256[2][2] memory b;
-            uint256[2] memory c;
+            bytes32 dataHash   = bytes32(proof[0:32]);
+            bytes calldata sealedKey = proof[32:136]; // 104 字节
+            uint256 nonce      = uint256(bytes32(proof[136:168]));
+            uint256 mac        = uint256(bytes32(proof[168:200]));
 
-            assembly {
-                // 直接从 calldata 按偏移读取
-                dataHash := calldataload(proof.offset)                      // 0..31
-                sealedKey := calldataload(add(proof.offset, 32))            // 32..47
-                nonce := calldataload(add(proof.offset, 48))                // 48..79
-                mac := calldataload(add(proof.offset, 80))                  // 80..111
+            uint256[2] memory a = [
+                uint256(bytes32(proof[200:232])),
+                uint256(bytes32(proof[232:264]))
+            ];
 
-                mstore(a, calldataload(add(proof.offset, 112)))             // a[0] 112..143
-                mstore(add(a, 0x20), calldataload(add(proof.offset, 144)))  // a[1] 144..175
+            uint256[2][2] memory b = [
+                [uint256(bytes32(proof[264:296])), uint256(bytes32(proof[296:328]))],
+                [uint256(bytes32(proof[328:360])), uint256(bytes32(proof[360:392]))]
+            ];
 
-                mstore(b, calldataload(add(proof.offset, 176)))
-                mstore(add(b, 0x20), calldataload(add(proof.offset, 208)))
-                mstore(add(b, 0x40), calldataload(add(proof.offset, 240)))
-                mstore(add(b, 0x60), calldataload(add(proof.offset, 272)))
+            uint256[2] memory c = [
+                uint256(bytes32(proof[392:424])),
+                uint256(bytes32(proof[424:456]))
+            ];
 
-                mstore(c, calldataload(add(proof.offset, 304)))
-                mstore(add(c, 0x20), calldataload(add(proof.offset, 336)))
-            }
+//            bytes32 dataHash;
+//            bytes sealedKey;
+//            uint256 nonce;
+//            uint256 mac;
+//            uint256[2] memory a;
+//            uint256[2][2] memory b;
+//            uint256[2] memory c;
+//
+//            assembly {
+//                // 直接从 calldata 按偏移读取
+//                dataHash := calldataload(proof.offset)                      // 0..31
+//                sealedKey := calldataload(add(proof.offset, 32))            // 32..47
+//                nonce := calldataload(add(proof.offset, 48))                // 48..79
+//                mac := calldataload(add(proof.offset, 80))                  // 80..111
+//
+//                mstore(a, calldataload(add(proof.offset, 112)))             // a[0] 112..143
+//                mstore(add(a, 0x20), calldataload(add(proof.offset, 144)))  // a[1] 144..175
+//
+//                mstore(b, calldataload(add(proof.offset, 176)))
+//                mstore(add(b, 0x20), calldataload(add(proof.offset, 208)))
+//                mstore(add(b, 0x40), calldataload(add(proof.offset, 240)))
+//                mstore(add(b, 0x60), calldataload(add(proof.offset, 272)))
+//
+//                mstore(c, calldataload(add(proof.offset, 304)))
+//                mstore(add(c, 0x20), calldataload(add(proof.offset, 336)))
+//            }
+
+//            require(rootHashes[mac] == dataHash, "Root hash is not matched!");
 
             bool isValid = true;
             if (preimageVerifier != address(0)) {
@@ -81,7 +103,7 @@ contract ZKPVerifier is BaseVerifier, Ownable {
                 isValid = verifier.verifyProof(a, b, c, publicInputs);
             }
 
-            outputs[i] = PreimageProofOutput(dataHash, sealedKey, isValid);
+            outputs[i] = PreimageProofOutput(dataHash, sealedKey, nonce, mac, a, b, c, preimageVerifier, isValid);
         }
 
         return outputs;
@@ -102,12 +124,12 @@ contract ZKPVerifier is BaseVerifier, Ownable {
 
        for (uint256 i = 0; i < proofs.length; i++) {
             // 144 bytes for oldDataHashes, newDataHashes, pubKey, sealedKey, TODO: proofs payload
-            require(proofs[i].length == 144, "Invalid proof length");
+            require(proofs[i].length == 232, "Invalid proof length");
 
             bytes32 oldHash = bytes32(proofs[i][0:32]);
             bytes32 newHash = bytes32(proofs[i][32:64]);
             bytes memory pubKey = proofs[i][64:128];
-            bytes16 sealedKey = bytes16(proofs[i][128:144]);
+            bytes calldata sealedKey = bytes(proofs[i][128:232]);
 
             // TODO: verify the proofs
             // 1. verify ZKP proof

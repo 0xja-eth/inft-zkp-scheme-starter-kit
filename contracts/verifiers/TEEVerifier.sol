@@ -23,19 +23,14 @@ contract TEEVerifier is BaseVerifier {
         );
         for (uint256 i = 0; i < proofs.length; i++) {
             bytes calldata proof = proofs[i];
-            require(proofs[i].length == 48, "Invalid data hash length");
+            require(proofs[i].length == 136, "Invalid data hash length");
 
-            bytes32 dataHash;
-            bytes16 sealedKey;
-
-            assembly {
-                dataHash := calldataload(proof.offset)             // 0 ~ 32
-                sealedKey := calldataload(add(proof.offset, 32))   // 32 ~ 48
-            }
+            bytes32 dataHash   = bytes32(proof[0:32]);
+            bytes calldata sealedKey = proof[32:136]; // 104 字节
 
             bool isValid = true;
 
-            outputs[i] = PreimageProofOutput(dataHash, sealedKey, isValid);
+//            outputs[i] = PreimageProofOutput(dataHash, sealedKey, isValid);
         }
         return outputs;
     }
@@ -55,12 +50,12 @@ contract TEEVerifier is BaseVerifier {
 
         for (uint256 i = 0; i < proofs.length; i++) {
             // 144 bytes for oldDataHashes, newDataHashes, pubKey, sealedKey, TODO: proofs payload
-            require(proofs[i].length == 144, "Invalid proof length");
+            require(proofs[i].length == 232, "Invalid proof length");
 
             bytes32 oldHash = bytes32(proofs[i][0:32]);
             bytes32 newHash = bytes32(proofs[i][32:64]);
             bytes memory pubKey = proofs[i][64:128];
-            bytes16 sealedKey = bytes16(proofs[i][128:144]);
+            bytes calldata sealedKey = bytes(proofs[i][128:232]);
 
             // TODO: verify the proofs
             // 1. verify TEE signature

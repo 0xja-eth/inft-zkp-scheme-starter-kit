@@ -1,6 +1,7 @@
 import { ISealingService } from '../ICryptoService';
 import * as naclUtil from 'tweetnacl-util';
 import * as nacl from 'tweetnacl';
+import crypto from 'crypto';
 
 export class X25519XSalsa20Poly1305SealingService implements ISealingService {
   /**

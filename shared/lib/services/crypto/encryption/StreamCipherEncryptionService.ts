@@ -7,14 +7,14 @@ import { IEncryptionService } from '../ICryptoService';
  * Uses Poseidon hash for keystream generation with state-based approach
  */
 export class StreamCipherEncryptionService implements IEncryptionService {
-  private readonly BLOCK_BYTES = 16;
-  private readonly N = 128; // Fixed 128 blocks
+  private static readonly BLOCK_BYTES = 16;
+  private static readonly N = 128; // Fixed 128 blocks
 
   constructor() {
     initPoseidon();
   }
 
-  private bigintsToBuffer(bigints: bigint[], blockBytes: number): Buffer {
+  private static bigintsToBuffer(bigints: bigint[], blockBytes: number): Buffer {
     const buf = Buffer.alloc(bigints.length * blockBytes);
     for (let i = 0; i < bigints.length; i++) {
       const val = bigints[i];
@@ -25,7 +25,7 @@ export class StreamCipherEncryptionService implements IEncryptionService {
     return buf;
   }
 
-  private bufferToBigints(buf: Buffer, blockBytes: number): bigint[] {
+  private static bufferToBigints(buf: Buffer, blockBytes: number): bigint[] {
     const res: bigint[] = [];
     for (let i = 0; i < buf.length; i += blockBytes) {
       const valBuf = buf.subarray(i, i + blockBytes);
@@ -35,6 +35,7 @@ export class StreamCipherEncryptionService implements IEncryptionService {
     }
     return res;
   }
+
   generateKey(): Buffer {
     return crypto.randomBytes(32);
   }
@@ -44,18 +45,18 @@ export class StreamCipherEncryptionService implements IEncryptionService {
 
     const jsonBuf = Buffer.from(data, 'utf8');
 
-    if (jsonBuf.length > this.N * this.BLOCK_BYTES) {
+    if (jsonBuf.length > StreamCipherEncryptionService.N * StreamCipherEncryptionService.BLOCK_BYTES) {
       throw new Error(
-        `Data too large for ${this.N} blocks (max ${this.N * this.BLOCK_BYTES} bytes)`
+        `Data too large for ${StreamCipherEncryptionService.N} blocks (max ${StreamCipherEncryptionService.N * StreamCipherEncryptionService.BLOCK_BYTES} bytes)`
       );
     }
 
     // Pad data to fixed size
-    const padded = Buffer.alloc(this.N * this.BLOCK_BYTES);
+    const padded = Buffer.alloc(StreamCipherEncryptionService.N * StreamCipherEncryptionService.BLOCK_BYTES);
     jsonBuf.copy(padded);
 
     // Convert to message blocks
-    const msgBlocks = this.bufferToBigints(padded, this.BLOCK_BYTES);
+    const msgBlocks = StreamCipherEncryptionService.bufferToBigints(padded, StreamCipherEncryptionService.BLOCK_BYTES);
 
     // Generate nonce (4 bytes)
     const nonceBuf = crypto.randomBytes(4);
@@ -70,28 +71,28 @@ export class StreamCipherEncryptionService implements IEncryptionService {
     // 2. Generate keystream ks[i] = Poseidon(state, i) mod 2^128
     const ks: bigint[] = [];
     const mod128 = (1n << 128n) - 1n; // 2^128 - 1
-    for (let i = 0; i < this.N; i++) {
+    for (let i = 0; i < StreamCipherEncryptionService.N; i++) {
       const hashVal = await poseidonAsync([state, BigInt(i)]);
       ks.push(hashVal & mod128); // Constrain to 128 bits
     }
 
     // 3. Generate cipher
     const cipher: bigint[] = [];
-    for (let i = 0; i < this.N; i++) {
+    for (let i = 0; i < StreamCipherEncryptionService.N; i++) {
       cipher.push(msgBlocks[i] ^ ks[i]);
     }
 
     // 4. Generate MAC using chain
     const acc: bigint[] = [];
     acc[0] = await poseidonAsync([0n, cipher[0]]);
-    for (let i = 1; i < this.N; i++) {
+    for (let i = 1; i < StreamCipherEncryptionService.N; i++) {
       acc[i] = await poseidonAsync([acc[i - 1], cipher[i]]);
     }
-    const digest = acc[this.N - 1];
+    const digest = acc[StreamCipherEncryptionService.N - 1];
     const mac = await poseidonAsync([nonce, digest]);
 
     // Pack result: nonce(4) + mac(32) + cipher(N*16)
-    const result = Buffer.alloc(4 + 32 + this.N * this.BLOCK_BYTES);
+    const result = Buffer.alloc(4 + 32 + StreamCipherEncryptionService.N * StreamCipherEncryptionService.BLOCK_BYTES);
     let offset = 0;
 
     // Write nonce
@@ -103,18 +104,18 @@ export class StreamCipherEncryptionService implements IEncryptionService {
     offset += 32;
 
     // Write cipher
-    const cipherBuf = this.bigintsToBuffer(cipher, this.BLOCK_BYTES);
+    const cipherBuf = StreamCipherEncryptionService.bigintsToBuffer(cipher, StreamCipherEncryptionService.BLOCK_BYTES);
     cipherBuf.copy(result, offset);
 
     return result;
   }
 
   async decrypt(encryptedData: Buffer, key: Buffer): Promise<string> {
-    const { nonce, cipher, mac: expectedMac } = await this.parseEncryptedData(encryptedData);
+    const { nonce, cipher, mac: expectedMac } = await StreamCipherEncryptionService.parseEncryptedData(encryptedData);
 
     // await initPoseidon()
     //
-    // if (encryptedData.length !== 4 + 32 + this.N * this.BLOCK_BYTES) {
+    // if (encryptedData.length !== 4 + 32 + StreamCipherEncryptionService.N * StreamCipherEncryptionService.BLOCK_BYTES) {
     //   throw new Error("Invalid encrypted data size");
     // }
     //
@@ -134,7 +135,7 @@ export class StreamCipherEncryptionService implements IEncryptionService {
     //
     // // Extract cipher
     // const cipherBuf = encryptedData.subarray(offset);
-    // const cipher = this.bufferToBigints(cipherBuf, this.BLOCK_BYTES);
+    // const cipher = this.bufferToBigints(cipherBuf, StreamCipherEncryptionService.BLOCK_BYTES);
 
     // Convert key to single field element
     const keyField = BigInt('0x' + key.toString('hex'));
@@ -145,7 +146,7 @@ export class StreamCipherEncryptionService implements IEncryptionService {
     // 2. Generate keystream ks[i] = Poseidon(state, i) mod 2^128
     const ks: bigint[] = [];
     const mod128 = (1n << 128n) - 1n; // 2^128 - 1
-    for (let i = 0; i < this.N; i++) {
+    for (let i = 0; i < StreamCipherEncryptionService.N; i++) {
       const hashVal = await poseidonAsync([state, BigInt(i)]);
       ks.push(hashVal & mod128); // Constrain to 128 bits
     }
@@ -153,10 +154,10 @@ export class StreamCipherEncryptionService implements IEncryptionService {
     // 3. Verify MAC
     const acc: bigint[] = [];
     acc[0] = await poseidonAsync([0n, cipher[0]]);
-    for (let i = 1; i < this.N; i++) {
+    for (let i = 1; i < StreamCipherEncryptionService.N; i++) {
       acc[i] = await poseidonAsync([acc[i - 1], cipher[i]]);
     }
-    const digest = acc[this.N - 1];
+    const digest = acc[StreamCipherEncryptionService.N - 1];
     const computedMac = await poseidonAsync([nonce, digest]);
 
     if (computedMac !== expectedMac) {
@@ -165,12 +166,12 @@ export class StreamCipherEncryptionService implements IEncryptionService {
 
     // 4. Decrypt message
     const msgBlocks: bigint[] = [];
-    for (let i = 0; i < this.N; i++) {
+    for (let i = 0; i < StreamCipherEncryptionService.N; i++) {
       msgBlocks.push(cipher[i] ^ ks[i]);
     }
 
     // Convert back to buffer and extract original data
-    const msgBuf = this.bigintsToBuffer(msgBlocks, this.BLOCK_BYTES);
+    const msgBuf = StreamCipherEncryptionService.bigintsToBuffer(msgBlocks, StreamCipherEncryptionService.BLOCK_BYTES);
 
     // Find actual data length (remove padding)
     let actualLength = msgBuf.length;
@@ -181,14 +182,14 @@ export class StreamCipherEncryptionService implements IEncryptionService {
     return msgBuf.subarray(0, actualLength).toString('utf8');
   }
 
-  async parseEncryptedData(encryptedData: Buffer): Promise<{
+  public static async parseEncryptedData(encryptedData: Buffer): Promise<{
     nonce: bigint;
     mac: bigint;
     cipher: bigint[];
   }> {
     await initPoseidon();
 
-    if (encryptedData.length !== 4 + 32 + this.N * this.BLOCK_BYTES) {
+    if (encryptedData.length !== 4 + 32 + StreamCipherEncryptionService.N * StreamCipherEncryptionService.BLOCK_BYTES) {
       throw new Error('Invalid encrypted data size');
     }
 
@@ -208,7 +209,7 @@ export class StreamCipherEncryptionService implements IEncryptionService {
 
     // Extract cipher
     const cipherBuf = encryptedData.subarray(offset);
-    const cipher = this.bufferToBigints(cipherBuf, this.BLOCK_BYTES);
+    const cipher = this.bufferToBigints(cipherBuf, StreamCipherEncryptionService.BLOCK_BYTES);
 
     return { nonce, mac, cipher };
   }
@@ -216,7 +217,7 @@ export class StreamCipherEncryptionService implements IEncryptionService {
   /**
    * Generate circuit inputs for StreamEncVerify
    */
-  async generateCircuitInputs(
+  public static async generateCircuitInputs(
     data: string,
     key: Buffer,
     encryptedData?: Buffer
@@ -230,14 +231,14 @@ export class StreamCipherEncryptionService implements IEncryptionService {
   }> {
     const jsonBuf = Buffer.from(data, 'utf8');
 
-    if (jsonBuf.length > this.N * this.BLOCK_BYTES) {
-      throw new Error(`Data too large for ${this.N} blocks`);
+    if (jsonBuf.length > StreamCipherEncryptionService.N * StreamCipherEncryptionService.BLOCK_BYTES) {
+      throw new Error(`Data too large for ${StreamCipherEncryptionService.N} blocks`);
     }
 
     // Pad data
-    const padded = Buffer.alloc(this.N * this.BLOCK_BYTES);
+    const padded = Buffer.alloc(StreamCipherEncryptionService.N * StreamCipherEncryptionService.BLOCK_BYTES);
     jsonBuf.copy(padded);
-    const msgBlocks = this.bufferToBigints(padded, this.BLOCK_BYTES);
+    const msgBlocks = this.bufferToBigints(padded, StreamCipherEncryptionService.BLOCK_BYTES);
 
     const keyField = BigInt('0x' + key.toString('hex'));
 
@@ -261,24 +262,24 @@ export class StreamCipherEncryptionService implements IEncryptionService {
     const state = await poseidonAsync([keyField, nonce]);
     const ks: bigint[] = [];
     const mod128 = (1n << 128n) - 1n; // 2^128 - 1
-    for (let i = 0; i < this.N; i++) {
+    for (let i = 0; i < StreamCipherEncryptionService.N; i++) {
       const hashVal = await poseidonAsync([state, BigInt(i)]);
       ks.push(hashVal & mod128); // Constrain to 128 bits
     }
 
     // Generate cipher
     const cipher: bigint[] = [];
-    for (let i = 0; i < this.N; i++) {
+    for (let i = 0; i < StreamCipherEncryptionService.N; i++) {
       cipher.push(msgBlocks[i] ^ ks[i]);
     }
 
     // Generate MAC
     const acc: bigint[] = [];
     acc[0] = await poseidonAsync([0n, cipher[0]]);
-    for (let i = 1; i < this.N; i++) {
+    for (let i = 1; i < StreamCipherEncryptionService.N; i++) {
       acc[i] = await poseidonAsync([acc[i - 1], cipher[i]]);
     }
-    const digest = acc[this.N - 1];
+    const digest = acc[StreamCipherEncryptionService.N - 1];
     const mac = await poseidonAsync([nonce, digest]);
 
     return {

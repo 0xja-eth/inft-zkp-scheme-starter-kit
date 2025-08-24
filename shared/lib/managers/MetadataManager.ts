@@ -25,6 +25,7 @@ export class MetadataManager {
 
       // Encrypt metadata
       const encryptedData = await this.crypto.encrypt(JSON.stringify(metadata), encryptionKey);
+      console.log('[Upload] encryptedData', encryptedData.toString("hex"));
 
       // Store encrypted data on 0G Storage
       const storageResult = await this.storage.store(encryptedData);

@@ -57,6 +57,12 @@ jspm_packages/
 /cache
 /artifacts
 
+# Foundry files
+/foundry-out
+/foundry-cache
+/broadcast
+/cache_forge
+
 # TypeChain files
 /typechain
 /typechain-types
@@ -97,3 +103,5 @@ secrets/
 /zkproof
 
 CLAUDE.md
+
+/lib

@@ -5,6 +5,7 @@ import { X25519XSalsa20Poly1305SealingService } from './sealing/X25519XSalsa20Po
 import { FeistelZKEncryptionService } from './encryption/FeistelZKEncryptionService';
 import { ZKSymmetricSealingService } from './sealing/ZKSymmetricSealingService';
 import { StreamCipherEncryptionService } from './encryption/StreamCipherEncryptionService';
+import {MetaMaskCompatibleSealingService} from "./sealing/MetaMaskCompatibleSealingService";
 
 /**
  * 通用加密服务组合
@@ -21,7 +22,7 @@ export class GeneralCryptoService extends CryptoService {
  */
 export class MetamaskCryptoService extends CryptoService {
   protected encryptionService = new AES256GCMEncryptionService();
-  protected sealingService = new X25519XSalsa20Poly1305SealingService();
+  protected sealingService = new MetaMaskCompatibleSealingService();
 }
 
 /**
@@ -30,5 +31,5 @@ export class MetamaskCryptoService extends CryptoService {
  */
 export class ZKCryptoService extends CryptoService {
   protected encryptionService = new StreamCipherEncryptionService();
-  protected sealingService = new X25519XSalsa20Poly1305SealingService();
+  protected sealingService = new MetaMaskCompatibleSealingService();
 }

@@ -1,16 +1,18 @@
-import { ethers } from 'ethers';
-import { poseidonAsync, initPoseidon } from '../services/crypto/Poseidon';
+import {ethers, Wallet} from 'ethers';
+import {poseidonAsync, initPoseidon, bigint2Buffer} from '../services/crypto/Poseidon';
 import { MetadataManager } from '../managers/MetadataManager';
 import { TransferManager } from '../managers/TransferManager';
 import { EncryptedMetadataResult, Metadata } from '../types';
 import { ZGStorageService } from '../services/storage/ZGStorageService';
 import { LocalStorageService } from '../services/storage/LocalStorageService';
 import { ZKCryptoService } from '../services/crypto/CryptoServices';
-import { PreimageProofGenerator } from '../services/crypto/zkp/PreimageProofGenerator';
+import {PreimageProofGenerator} from '../services/crypto/zkp/PreimageProofGenerator';
 import { IStorageService } from '../services/storage/StorageService';
 import { CryptoService } from '../services/crypto/ICryptoService';
 import { VerifierClient } from './VerifierClient';
 import * as sea from 'node:sea';
+import {MetaMaskCompatibleSealingService} from "../services/crypto/sealing/MetaMaskCompatibleSealingService";
+import {Groth16Proof} from "snarkjs/index";
 
 export class AgentNFTClient {
   private wallet?: ethers.Wallet;
@@ -59,7 +61,7 @@ export class AgentNFTClient {
 
     // 1. Create and encrypt AI agent metadata
     console.log('Uploading encrypted AI agent metadata...');
-    return await this.metadataManager.uploadAIAgent(metadata, this.wallet.signingKey.publicKey);
+    return await this.metadataManager.uploadAIAgent(metadata, this.getPublicKey(this.wallet));
   }
 
   /**
@@ -76,6 +78,7 @@ export class AgentNFTClient {
     sealedKey: string;
   }> {
     if (!this.wallet) throw new Error('Wallet not initialized');
+    if (!this.verifierClient) throw new Error('Verify client not initialized');
 
     try {
       const to = recipientAddress || this.wallet.address;
@@ -87,6 +90,9 @@ export class AgentNFTClient {
       // This proof verifies that we know the preimage of the dataHash
       console.log('Generating preimage proof...');
       const proof = await this.generatePreimageProof(metadata, encryptedResult);
+
+      const result = await this.verifierClient.testVerifyPreimage(proof)
+      console.log("Test Result", result)
 
       // 3. Prepare data descriptions
       const dataDescriptions = [
@@ -118,7 +124,7 @@ export class AgentNFTClient {
       }
 
       const parsedEvent = this.agentNFT.interface.parseLog(mintedEvent);
-      const tokenId = Number(parsedEvent?.args.tokenId);
+      const tokenId = Number(parsedEvent?.args._tokenId);
 
       console.log(`AgentNFT minted successfully! Token ID: ${tokenId}`);
 
@@ -255,7 +261,7 @@ export class AgentNFTClient {
         rootHash,
         encryptionKey,
         updatedModelData,
-        this.wallet.signingKey.publicKey
+        this.getPublicKey(this.wallet)
       );
 
       // 3. Generate proof for updated data
@@ -270,6 +276,10 @@ export class AgentNFTClient {
     } catch (error: any) {
       throw new Error(`Update failed: ${error.message}`);
     }
+  }
+
+  private getPublicKey(wallet: ethers.Wallet) {
+    return MetaMaskCompatibleSealingService.getMetaMaskPublicKey(wallet.privateKey);
   }
 
   /**
@@ -444,117 +454,241 @@ export class AgentNFTClient {
 
   /**
    * Create proof buffer compatible with Solidity verifyPreimage function
-   * Format: dataHash(32) + sealedKey(16) + nonce(32) + mac(32) + groth16Proof(256) = 368 bytes
+   * Format:
+   * dataHash(32) + sealedKey(104) + nonce(32) + mac(32) + groth16Proof(256) = 456 bytes
    */
   private createPreimageProofBuffer(
-    dataHash: string,
-    sealedKey: string,
-    publicSignals: string[],
-    proof: any
+      dataHash: string,
+      sealedKey: string,
+      publicSignals: string[],
+      proof: Groth16Proof
   ): string {
-    // Convert inputs to proper formats
-    const dataHashBytes = ethers.getBytes(dataHash); // 32 bytes
-    const sealedKeyBytes = ethers.getBytes(sealedKey).slice(0, 16); // 16 bytes (truncate if longer)
+    // --- dataHash (32 bytes)
+    const dataHashBytes = ethers.getBytes(dataHash);
+    if (dataHashBytes.length !== 32) {
+      throw new Error(`Expected dataHash to be 32 bytes, got ${dataHashBytes.length}`);
+    }
 
-    // Extract nonce and mac from publicSignals
-    // publicSignals format: [nonce, mac] (2 elements for StreamEncVerify circuit)
+    // --- sealedKey (104 bytes)
+    const sealedKeyBytes = Buffer.from(sealedKey, "base64");
+    if (sealedKeyBytes.length !== 104) {
+      throw new Error(`Expected sealed key length to be 104 bytes, got ${sealedKeyBytes.length}`);
+    }
+
+    // --- public signals (nonce, mac)
     if (publicSignals.length !== 2) {
       throw new Error(`Expected 2 public signals, got ${publicSignals.length}`);
     }
+    const nonceBytes = ethers.getBytes(
+        ethers.zeroPadValue(ethers.toBeHex(BigInt(publicSignals[0])), 32)
+    );
+    const macBytes = ethers.getBytes(
+        ethers.zeroPadValue(ethers.toBeHex(BigInt(publicSignals[1])), 32)
+    );
 
-    const nonce = BigInt(publicSignals[0]);
-    const mac = BigInt(publicSignals[1]);
-
-    // Convert to 32-byte buffers (big-endian)
-    const nonceBytes = new Uint8Array(32);
-    const macBytes = new Uint8Array(32);
-
-    // Convert BigInt to bytes (big-endian)
-    this.bigIntToBytes(nonce, nonceBytes);
-    this.bigIntToBytes(mac, macBytes);
-
-    // Extract Groth16 proof components (a, b, c)
+    // --- groth16 proof (256 bytes)
     const proofBytes = this.encodeGroth16Proof(proof);
 
-    // Concatenate all components
-    const totalLength = 32 + 16 + 32 + 32 + 256; // 368 bytes
+    // --- allocate buffer (456 bytes)
+    const totalLength = 32 + 104 + 32 + 32 + 256;
     const buffer = new Uint8Array(totalLength);
     let offset = 0;
 
-    // dataHash (32 bytes)
-    buffer.set(dataHashBytes, offset);
-    offset += 32;
-
-    // sealedKey (16 bytes)
-    buffer.set(sealedKeyBytes, offset);
-    offset += 16;
-
-    // nonce (32 bytes)
-    buffer.set(nonceBytes, offset);
-    offset += 32;
-
-    // mac (32 bytes)
-    buffer.set(macBytes, offset);
-    offset += 32;
-
-    // groth16Proof (256 bytes)
+    buffer.set(dataHashBytes, offset); offset += 32;
+    buffer.set(sealedKeyBytes, offset); offset += 104;
+    buffer.set(nonceBytes, offset); offset += 32;
+    buffer.set(macBytes, offset); offset += 32;
     buffer.set(proofBytes, offset);
 
     return ethers.hexlify(buffer);
   }
 
   /**
-   * Convert BigInt to 32-byte array (big-endian)
-   */
-  private bigIntToBytes(value: bigint, buffer: Uint8Array): void {
-    if (buffer.length !== 32) {
-      throw new Error('Buffer must be 32 bytes');
-    }
-
-    // Convert to big-endian bytes
-    for (let i = 31; i >= 0; i--) {
-      buffer[i] = Number(value & 0xffn);
-      value = value >> 8n;
-    }
-  }
-
-  /**
    * Encode Groth16 proof (a, b, c) to 256 bytes
-   * Format: a(64) + b(128) + c(64) = 256 bytes
+   * Format: a(64) + b(128) + c(64)
    */
-  private encodeGroth16Proof(proof: any): Uint8Array {
+  private encodeGroth16Proof(proof: Groth16Proof): Uint8Array {
     const proofBytes = new Uint8Array(256);
     let offset = 0;
 
-    // a: [2 elements] = 64 bytes
+    // --- a: [2]
     for (let i = 0; i < 2; i++) {
       const value = BigInt(proof.pi_a[i]);
-      const bytes = new Uint8Array(32);
-      this.bigIntToBytes(value, bytes);
+      const bytes = ethers.getBytes(
+          ethers.zeroPadValue(ethers.toBeHex(value), 32)
+      );
       proofBytes.set(bytes, offset);
       offset += 32;
     }
 
-    // b: [2][2 elements] = 128 bytes
+    // --- b: [2][2] (ignore the 3rd row if exists)
     for (let i = 0; i < 2; i++) {
-      for (let j = 0; j < 2; j++) {
+      for (let j = 1; j >= 0; j--) { // Reverse order
         const value = BigInt(proof.pi_b[i][j]);
-        const bytes = new Uint8Array(32);
-        this.bigIntToBytes(value, bytes);
+        const bytes = ethers.getBytes(
+            ethers.zeroPadValue(ethers.toBeHex(value), 32)
+        );
         proofBytes.set(bytes, offset);
         offset += 32;
       }
     }
 
-    // c: [2 elements] = 64 bytes
+    // --- c: [2]
     for (let i = 0; i < 2; i++) {
       const value = BigInt(proof.pi_c[i]);
-      const bytes = new Uint8Array(32);
-      this.bigIntToBytes(value, bytes);
+      const bytes = ethers.getBytes(
+          ethers.zeroPadValue(ethers.toBeHex(value), 32)
+      );
       proofBytes.set(bytes, offset);
       offset += 32;
     }
 
     return proofBytes;
   }
+
+  // /**
+  //  * Create proof buffer compatible with Solidity verifyPreimage function
+  //  * Format: dataHash(32) + sealedKey(16) + nonce(32) + mac(32) + groth16Proof(256) = 368 bytes
+  //  */
+  // private createPreimageProofBuffer(
+  //   dataHash: string,
+  //   sealedKey: string,
+  //   publicSignals: string[],
+  //   proof: {
+  //     "pi_a": [
+  //       "12374041035784657098724057874677394923018960810545464069008427886649170476624",
+  //       "19325559959162900566803619118427790810097928486489900627096409441131809572867",
+  //       "1"
+  //     ],
+  //     "pi_b": [
+  //       [
+  //         "4756454615533246956358020616302431442157269760629290082751195707647361244280",
+  //         "11144573826152202102437997709655000266134781177772916706738262298112843811740"
+  //       ],
+  //       [
+  //         "19753098329802689139859027059020717989349856210946704230725679257012579081563",
+  //         "2234742065703125226406209393042127637335254150407126899237543912186505076067"
+  //       ],
+  //       [
+  //         "1",
+  //         "0"
+  //       ]
+  //     ],
+  //     "pi_c": [
+  //       "13542313289067810569455751128258056416510967671559837995927554871577867863877",
+  //       "3319084298478008822747873779359459555142941620217680106975570165642496260600",
+  //       "1"
+  //     ],
+  //     "protocol": "groth16",
+  //     "curve": "bn128"
+  //   }
+  // ): string {
+  //   // Convert inputs to proper formats
+  //   const dataHashBytes = ethers.getBytes(dataHash); // 32 bytes
+  //   const sealedKeyBytes = Buffer.from(sealedKey, "base64"); //.slice(0, 16); // 16 bytes (truncate if longer)
+  //
+  //   if (sealedKeyBytes.length != 104) // For 32 bytes key, the sealed key should be 104 bytes
+  //     throw new Error(`Expected sealed key length to be 104 bytes, got ${sealedKeyBytes.length}`);
+  //
+  //   // Extract nonce and mac from publicSignals
+  //   // publicSignals format: [nonce, mac] (2 elements for StreamEncVerify circuit)
+  //   if (publicSignals.length !== 2) {
+  //     throw new Error(`Expected 2 public signals, got ${publicSignals.length}`);
+  //   }
+  //
+  //   const nonce = BigInt(publicSignals[0]);
+  //   const mac = BigInt(publicSignals[1]);
+  //
+  //   // Convert to 32-byte buffers (big-endian)
+  //   const nonceBytes = new Uint8Array(32);
+  //   const macBytes = new Uint8Array(32);
+  //
+  //   // Convert BigInt to bytes (big-endian)
+  //   this.bigIntToBytes(nonce, nonceBytes);
+  //   this.bigIntToBytes(mac, macBytes);
+  //
+  //   // Extract Groth16 proof components (a, b, c)
+  //   const proofBytes = this.encodeGroth16Proof(proof);
+  //
+  //   // Concatenate all components
+  //   const totalLength = 32 + 104 + 32 + 32 + 256; // 456 bytes
+  //   const buffer = new Uint8Array(totalLength);
+  //   let offset = 0;
+  //
+  //   // dataHash (32 bytes)
+  //   buffer.set(dataHashBytes, offset);
+  //   offset += 32;
+  //
+  //   // sealedKey (104 bytes)
+  //   buffer.set(sealedKeyBytes, offset);
+  //   offset += 104;
+  //
+  //   // nonce (32 bytes)
+  //   buffer.set(nonceBytes, offset);
+  //   offset += 32;
+  //
+  //   // mac (32 bytes)
+  //   buffer.set(macBytes, offset);
+  //   offset += 32;
+  //
+  //   // groth16Proof (256 bytes)
+  //   buffer.set(proofBytes, offset);
+  //
+  //   return ethers.hexlify(buffer);
+  // }
+  //
+  // /**
+  //  * Convert BigInt to 32-byte array (big-endian)
+  //  */
+  // private bigIntToBytes(value: bigint, buffer: Uint8Array): void {
+  //   if (buffer.length !== 32) {
+  //     throw new Error('Buffer must be 32 bytes');
+  //   }
+  //
+  //   // Convert to big-endian bytes
+  //   for (let i = 31; i >= 0; i--) {
+  //     buffer[i] = Number(value & 0xffn);
+  //     value = value >> 8n;
+  //   }
+  // }
+  //
+  // /**
+  //  * Encode Groth16 proof (a, b, c) to 256 bytes
+  //  * Format: a(64) + b(128) + c(64) = 256 bytes
+  //  */
+  // private encodeGroth16Proof(proof: any): Uint8Array {
+  //   const proofBytes = new Uint8Array(256);
+  //   let offset = 0;
+  //
+  //   // a: [2 elements] = 64 bytes
+  //   for (let i = 0; i < 2; i++) {
+  //     const value = BigInt(proof.pi_a[i]);
+  //     const bytes = new Uint8Array(32);
+  //     this.bigIntToBytes(value, bytes);
+  //     proofBytes.set(bytes, offset);
+  //     offset += 32;
+  //   }
+  //
+  //   // b: [2][2 elements] = 128 bytes
+  //   for (let i = 0; i < 2; i++) {
+  //     for (let j = 0; j < 2; j++) {
+  //       const value = BigInt(proof.pi_b[i][j]);
+  //       const bytes = new Uint8Array(32);
+  //       this.bigIntToBytes(value, bytes);
+  //       proofBytes.set(bytes, offset);
+  //       offset += 32;
+  //     }
+  //   }
+  //
+  //   // c: [2 elements] = 64 bytes
+  //   for (let i = 0; i < 2; i++) {
+  //     const value = BigInt(proof.pi_c[i]);
+  //     const bytes = new Uint8Array(32);
+  //     this.bigIntToBytes(value, bytes);
+  //     proofBytes.set(bytes, offset);
+  //     offset += 32;
+  //   }
+  //
+  //   return proofBytes;
+  // }
 }

@@ -35,7 +35,7 @@ interface IERC7857 {
     event PublishedSealedKey(
         address indexed _to,
         uint256 indexed _tokenId,
-        bytes16[] _sealedKeys
+        bytes[] _sealedKeys
     );
 
     /// @notice The verifier interface that this NFT uses

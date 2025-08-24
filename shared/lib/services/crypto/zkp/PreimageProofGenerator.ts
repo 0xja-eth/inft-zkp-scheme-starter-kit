@@ -11,11 +11,9 @@ export class PreimageProofGenerator {
   private readonly circuitWasmPath: string;
   private readonly circuitZkeyPath: string;
 
-  private encryptionService = new StreamCipherEncryptionService();
-
   constructor(buildDir: string = './build') {
-    this.circuitWasmPath = path.join(buildDir, 'StreamEncVerify.wasm');
-    this.circuitZkeyPath = path.join(buildDir, 'stream_enc_verify_final.zkey');
+    this.circuitWasmPath = path.join(buildDir, 'preimage_verifier_js', 'preimage_verifier.wasm');
+    this.circuitZkeyPath = path.join(buildDir, 'preimage_verifier_final.zkey');
   }
 
   /**
@@ -25,12 +23,9 @@ export class PreimageProofGenerator {
     data: string,
     key: Buffer,
     encryptedData?: Buffer
-  ): Promise<{
-    proof: any;
-    publicSignals: string[];
-  }> {
+  ) {
     // Generate circuit inputs
-    const inputs = await this.encryptionService.generateCircuitInputs(data, key, encryptedData);
+    const inputs = await StreamCipherEncryptionService.generateCircuitInputs(data, key, encryptedData);
 
     // Check if circuit files exist
     if (!fs.existsSync(this.circuitWasmPath)) {
@@ -60,6 +55,8 @@ export class PreimageProofGenerator {
       this.circuitZkeyPath
     );
 
+    console.log('Proof: ', { proof, publicSignals });
+
     return { proof, publicSignals };
   }
 
@@ -80,46 +77,46 @@ export class PreimageProofGenerator {
     return await snarkjs.groth16.verify(vKey, publicSignals, proof);
   }
 
-  /**
-   * Export verification key from zkey file
-   */
-  async exportVerificationKey(): Promise<void> {
-    const vkeyPath = path.join(path.dirname(this.circuitZkeyPath), 'verification_key.json');
-
-    const vKey = await snarkjs.zKey.exportVerificationKey(this.circuitZkeyPath);
-    fs.writeFileSync(vkeyPath, JSON.stringify(vKey, null, 2));
-
-    console.log(`Verification key exported to: ${vkeyPath}`);
-  }
-
-  /**
-   * Get build instructions for circuit compilation and setup
-   */
-  static getBuildInstructions(): string[] {
-    return [
-      '# 1. Compile circuit',
-      'circom circuits/StreamEncVerify.circom --r1cs --wasm --sym -o build',
-      '',
-      '# 2. Start Powers of Tau ceremony',
-      'snarkjs powersoftau new bn128 12 build/pot12_0000.ptau -v',
-      '',
-      '# 3. Contribute to ceremony',
-      'snarkjs powersoftau contribute build/pot12_0000.ptau build/pot12_0001.ptau --name="First contribution" -v',
-      '',
-      '# 4. Prepare phase 2',
-      'snarkjs powersoftau prepare phase2 build/pot12_0001.ptau build/pot12_final.ptau -v',
-      '',
-      '# 5. Generate zkey',
-      'snarkjs groth16 setup build/StreamEncVerify.r1cs build/pot12_final.ptau build/stream_enc_verify_0000.zkey',
-      '',
-      '# 6. Contribute to phase 2',
-      'snarkjs zkey contribute build/stream_enc_verify_0000.zkey build/stream_enc_verify_final.zkey --name="First contribution" -v',
-      '',
-      '# 7. Export verification key',
-      'snarkjs zkey export verificationkey build/stream_enc_verify_final.zkey build/verification_key.json',
-    ];
-  }
-
+  // /**
+  //  * Export verification key from zkey file
+  //  */
+  // async exportVerificationKey(): Promise<void> {
+  //   const vkeyPath = path.join(path.dirname(this.circuitZkeyPath), 'verification_key.json');
+  //
+  //   const vKey = await snarkjs.zKey.exportVerificationKey(this.circuitZkeyPath);
+  //   fs.writeFileSync(vkeyPath, JSON.stringify(vKey, null, 2));
+  //
+  //   console.log(`Verification key exported to: ${vkeyPath}`);
+  // }
+  //
+  // /**
+  //  * Get build instructions for circuit compilation and setup
+  //  */
+  // static getBuildInstructions(): string[] {
+  //   return [
+  //     '# 1. Compile circuit',
+  //     'circom circuits/StreamEncVerify.circom --r1cs --wasm --sym -o build',
+  //     '',
+  //     '# 2. Start Powers of Tau ceremony',
+  //     'snarkjs powersoftau new bn128 12 build/pot12_0000.ptau -v',
+  //     '',
+  //     '# 3. Contribute to ceremony',
+  //     'snarkjs powersoftau contribute build/pot12_0000.ptau build/pot12_0001.ptau --name="First contribution" -v',
+  //     '',
+  //     '# 4. Prepare phase 2',
+  //     'snarkjs powersoftau prepare phase2 build/pot12_0001.ptau build/pot12_final.ptau -v',
+  //     '',
+  //     '# 5. Generate zkey',
+  //     'snarkjs groth16 setup build/StreamEncVerify.r1cs build/pot12_final.ptau build/stream_enc_verify_0000.zkey',
+  //     '',
+  //     '# 6. Contribute to phase 2',
+  //     'snarkjs zkey contribute build/stream_enc_verify_0000.zkey build/stream_enc_verify_final.zkey --name="First contribution" -v',
+  //     '',
+  //     '# 7. Export verification key',
+  //     'snarkjs zkey export verificationkey build/stream_enc_verify_final.zkey build/verification_key.json',
+  //   ];
+  // }
+  //
   /**
    * Check if circuit is ready for proof generation
    */

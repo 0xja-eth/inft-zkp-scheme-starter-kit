@@ -7,6 +7,7 @@
     "build": "npx hardhat compile",
     "test": "npx hardhat test",
     "node": "npx hardhat node",
+    "compile": "npx hardhat compile",
     "deploy": "npx hardhat ignition deploy ./ignition/modules/AgentNFTDeploy.ts --network 0g-testnet --parameters ./ignition/parameters/0g-testnet.json",
     "deploy:0g": "npx hardhat ignition deploy ./ignition/modules/AgentNFTDeploy.ts --network 0g-testnet --parameters ./ignition/parameters/0g-testnet.json",
     "deploy:localhost": "npx hardhat ignition deploy ./ignition/modules/AgentNFTDeploy.ts --network localhost",
@@ -29,7 +30,11 @@
     "prettier": "prettier --write .",
     "prettier:check": "prettier --check .",
     "format": "npm run prettier && npm run lint",
-    "format:check": "npm run prettier:check && npm run lint:check"
+    "format:check": "npm run prettier:check && npm run lint:check",
+    "foundry:build": "forge build",
+    "foundry:test": "forge test",
+    "foundry:test-v": "forge test -vvv",
+    "test:stream-enc-zkp": "npx tsx test/test-stream-enc-zkp.ts"
   },
   "keywords": [],
   "author": "",

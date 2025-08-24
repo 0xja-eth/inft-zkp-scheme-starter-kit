@@ -10,12 +10,14 @@ import { MemData } from '@0glabs/0g-ts-sdk';
 export class VerifierClient {
   private zkpVerifier: ethers.Contract;
 
-  private encryptionService = new StreamCipherEncryptionService();
-
   constructor(zkpVerifierAddress: string, wallet: ethers.Wallet) {
     // Load ZKPVerifier contract
     const ZKPVerifierArtifact = require('../../../artifacts/contracts/verifiers/ZKPVerifier.sol/ZKPVerifier.json');
     this.zkpVerifier = new ethers.Contract(zkpVerifierAddress, ZKPVerifierArtifact.abi, wallet);
+  }
+
+  async testVerifyPreimage(proof: string) {
+    return await this.zkpVerifier.verifyPreimage([proof]);
   }
 
   /**
@@ -28,9 +30,10 @@ export class VerifierClient {
   async verifyAndSubmitRootHash(encryptedResult: EncryptedMetadataResult): Promise<string> {
     try {
       // 1. Get commitment (MAC) from encrypted data
-      const { mac: commitment } = await this.encryptionService.parseEncryptedData(
+      const { mac: commitment } = await StreamCipherEncryptionService.parseEncryptedData(
         encryptedResult.encryptedData
       );
+      console.log('[Verify] encryptedData', encryptedResult.encryptedData.toString("hex"));
 
       // 2. Calculate rootHash from encrypted data
       const rootHash = await this.calculateRootHash(encryptedResult.encryptedData);

@@ -38,7 +38,7 @@ template PoseidonChain(N) {
     out <== acc[N - 1];
 }
 
-template StreamEncVerify(N) {
+template PreimageVerifier(N) {
     // public
     signal input nonce;
     signal input mac;
@@ -58,12 +58,12 @@ template StreamEncVerify(N) {
     // ks components - constrain keystream to 128 bits using bit decomposition
     component hks[N];
 
-component toBits254[N];
-component ksBits[N];
-component fromBits128[N];
+    component toBits254[N];
+    component ksBits[N];
+    component fromBits128[N];
 
-component msgBitsArr[N];
-component cipherBitsArr[N];
+    component msgBitsArr[N];
+    component cipherBitsArr[N];
 
     // component toBits[N];
     // component fromBits[N];
@@ -75,21 +75,21 @@ component cipherBitsArr[N];
         hks[i].inputs[0] <== state;
         hks[i].inputs[1] <== i;
 
-    // 将 Poseidon 输出拆成 254 位
-    toBits254[i] = Num2Bits(254);
-    toBits254[i].in <== hks[i].out;
+        // 将 Poseidon 输出拆成 254 位
+        toBits254[i] = Num2Bits(254);
+        toBits254[i].in <== hks[i].out;
 
-    // 只保留低 128 位
-    ksBits[i] = Bits2Num(128);
-    for (var b = 0; b < 128; b++) {
-        ksBits[i].in[b] <== toBits254[i].out[b]; // 低 128 位
-    }
-    ks[i] <== ksBits[i].out;
+        // 只保留低 128 位
+        ksBits[i] = Bits2Num(128);
+        for (var b = 0; b < 128; b++) {
+            ksBits[i].in[b] <== toBits254[i].out[b]; // 低 128 位
+        }
+        ks[i] <== ksBits[i].out;
 
         // Decompose to 128 bits and recompose to enforce 128-bit constraint
         // toBits[i] = Num2Bits(128);
         // fromBits[i] = Bits2Num(128);
-        
+
         // toBits[i].in <== hks[i].out;
         // fromBits[i].in <== toBits[i].out;
         // ks[i] <== fromBits[i].out;
@@ -97,14 +97,14 @@ component cipherBitsArr[N];
         // XOR constraint: cipher[i] == msg[i] XOR ks[i]
         // In finite field: a XOR b = a + b - 2*a*b
 
-    msgBitsArr[i] = Num2Bits(128);
-    msgBitsArr[i].in <== msg[i];
+        msgBitsArr[i] = Num2Bits(128);
+        msgBitsArr[i].in <== msg[i];
 
-    cipherBitsArr[i] = Bits2Num(128);
-    for (var b = 0; b < 128; b++) {
-        cipherBitsArr[i].in[b] <== msgBitsArr[i].out[b] + ksBits[i].in[b] - 2 * msgBitsArr[i].out[b] * ksBits[i].in[b];
-    }
-    cipher[i] === cipherBitsArr[i].out;
+        cipherBitsArr[i] = Bits2Num(128);
+        for (var b = 0; b < 128; b++) {
+            cipherBitsArr[i].in[b] <== msgBitsArr[i].out[b] + ksBits[i].in[b] - 2 * msgBitsArr[i].out[b] * ksBits[i].in[b];
+        }
+        cipher[i] === cipherBitsArr[i].out;
 
         // cipher[i] === msg[i] + ks[i] - 2 * msg[i] * ks[i];
     }
@@ -123,4 +123,4 @@ component cipherBitsArr[N];
     mac === hmac.out;
 }
 
-component main {public [nonce, mac]} = StreamEncVerify(128);
+component main {public [nonce, mac]} = PreimageVerifier(128);

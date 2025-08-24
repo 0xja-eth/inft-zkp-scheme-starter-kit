@@ -3,6 +3,7 @@ import { StorageResult } from '../../types';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
+import {MemData} from "@0glabs/0g-ts-sdk";
 
 export interface LocalStorageConfig {
   storageDir: string;
@@ -51,7 +52,7 @@ export class LocalStorageService extends StorageService {
    * 存储数据到本地文件系统
    */
   protected async doStore(data: Buffer): Promise<StorageResult> {
-    const rootHash = this.generateContentHash(data);
+    const rootHash = await this.generateContentHash(data);
     const filePath = this.getFilePath(rootHash);
 
     console.log(`[Local-Storage] Storing ${data.length} bytes as ${rootHash}`);
@@ -109,7 +110,7 @@ export class LocalStorageService extends StorageService {
     const data = fs.readFileSync(filePath);
 
     // 验证内容哈希
-    const actualHash = this.generateContentHash(data);
+    const actualHash = await this.generateContentHash(data);
     if (actualHash !== rootHash) {
       throw new Error(`Content hash mismatch. Expected: ${rootHash}, Actual: ${actualHash}`);
     }
@@ -253,8 +254,23 @@ export class LocalStorageService extends StorageService {
   /**
    * 生成内容哈希
    */
-  private generateContentHash(data: Buffer): string {
-    return crypto.createHash('sha256').update(data).digest('hex');
+  private async generateContentHash(data: Buffer): Promise<string> {
+    const file = new MemData(data);
+
+    // 生成Merkle树
+    const [tree, treeErr] = await file.merkleTree();
+    if (treeErr !== null) {
+      throw new Error(`Merkle tree generation failed: ${treeErr}`);
+    }
+
+    const rootHash = tree?.rootHash() ?? '';
+    if (!rootHash) {
+      throw new Error('Failed to generate root hash');
+    }
+
+    return rootHash
+
+    // return crypto.createHash('sha256').update(data).digest('hex');
   }
 
   /**
