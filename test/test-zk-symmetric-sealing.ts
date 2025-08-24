@@ -6,7 +6,7 @@ import { ethers } from 'ethers';
 
 /**
  * ZKSymmetricSealingService 测试脚本
- * 
+ *
  * 测试内容：
  * 1. 基础密钥封装和解封装
  * 2. 不同密钥长度的处理
@@ -33,7 +33,7 @@ class ZKSymmetricSealingTester {
   private logTest(testName: string, passed: boolean, message?: string, timing?: number) {
     const result: TestResult = { testName, passed, message, timing };
     this.results.push(result);
-    
+
     const status = passed ? '✅ PASS' : '❌ FAIL';
     const timingStr = timing ? ` (${timing.toFixed(2)}ms)` : '';
     console.log(`${status} ${testName}${timingStr}`);
@@ -47,7 +47,7 @@ class ZKSymmetricSealingTester {
    */
   async testBasicSealingAndUnsealing() {
     const startTime = Date.now();
-    
+
     try {
       // 生成测试数据
       const encryptionKey = crypto.randomBytes(32); // 256-bit key
@@ -57,7 +57,7 @@ class ZKSymmetricSealingTester {
 
       // 执行封装
       const sealedKey = await this.sealingService.sealKey(encryptionKey, publicKey);
-      
+
       // 验证封装结果
       if (!sealedKey || sealedKey.length === 0) {
         throw new Error('Sealed key is empty');
@@ -65,14 +65,21 @@ class ZKSymmetricSealingTester {
 
       // 执行解封装
       const unsealedKey = await this.sealingService.unsealKey(sealedKey, privateKey);
-      
+
       // 验证解封装结果
       if (!encryptionKey.equals(unsealedKey)) {
-        throw new Error(`Key mismatch: original=${encryptionKey.toString('hex')}, unsealed=${unsealedKey.toString('hex')}`);
+        throw new Error(
+          `Key mismatch: original=${encryptionKey.toString('hex')}, unsealed=${unsealedKey.toString('hex')}`
+        );
       }
 
       const timing = Date.now() - startTime;
-      this.logTest('Basic Sealing and Unsealing', true, `Key length: ${encryptionKey.length} bytes`, timing);
+      this.logTest(
+        'Basic Sealing and Unsealing',
+        true,
+        `Key length: ${encryptionKey.length} bytes`,
+        timing
+      );
     } catch (error) {
       const timing = Date.now() - startTime;
       this.logTest('Basic Sealing and Unsealing', false, (error as Error).message, timing);
@@ -84,10 +91,10 @@ class ZKSymmetricSealingTester {
    */
   async testDifferentKeyLengths() {
     const keyLengths = [16, 24, 32, 64]; // 128-bit, 192-bit, 256-bit, 512-bit
-    
+
     for (const keyLength of keyLengths) {
       const startTime = Date.now();
-      
+
       try {
         const encryptionKey = crypto.randomBytes(keyLength);
         const wallet = ethers.Wallet.createRandom();
@@ -102,7 +109,12 @@ class ZKSymmetricSealingTester {
         }
 
         const timing = Date.now() - startTime;
-        this.logTest(`Key Length ${keyLength * 8}-bit`, true, `Success with ${keyLength} bytes`, timing);
+        this.logTest(
+          `Key Length ${keyLength * 8}-bit`,
+          true,
+          `Success with ${keyLength} bytes`,
+          timing
+        );
       } catch (error) {
         const timing = Date.now() - startTime;
         this.logTest(`Key Length ${keyLength * 8}-bit`, false, (error as Error).message, timing);
@@ -115,15 +127,18 @@ class ZKSymmetricSealingTester {
    */
   async testWrongPrivateKey() {
     const startTime = Date.now();
-    
+
     try {
       const encryptionKey = crypto.randomBytes(32);
       const wallet1 = ethers.Wallet.createRandom();
       const wallet2 = ethers.Wallet.createRandom();
 
       // 使用wallet1的公钥封装
-      const sealedKey = await this.sealingService.sealKey(encryptionKey, wallet1.signingKey.publicKey);
-      
+      const sealedKey = await this.sealingService.sealKey(
+        encryptionKey,
+        wallet1.signingKey.publicKey
+      );
+
       // 尝试使用wallet2的私钥解封装
       try {
         await this.sealingService.unsealKey(sealedKey, wallet2.privateKey);
@@ -148,7 +163,7 @@ class ZKSymmetricSealingTester {
    */
   async testCorruptedSealedData() {
     const startTime = Date.now();
-    
+
     try {
       const encryptionKey = crypto.randomBytes(32);
       const wallet = ethers.Wallet.createRandom();
@@ -156,10 +171,10 @@ class ZKSymmetricSealingTester {
       const privateKey = wallet.privateKey;
 
       const sealedKey = await this.sealingService.sealKey(encryptionKey, publicKey);
-      
+
       // 损坏密封数据的一个字符
       const corruptedSealedKey = sealedKey.slice(0, -5) + 'XXXXX';
-      
+
       try {
         await this.sealingService.unsealKey(corruptedSealedKey, privateKey);
         throw new Error('Should have failed with corrupted data');
@@ -183,17 +198,17 @@ class ZKSymmetricSealingTester {
    */
   async testSealedDataStructure() {
     const startTime = Date.now();
-    
+
     try {
       const encryptionKey = crypto.randomBytes(32);
       const wallet = ethers.Wallet.createRandom();
       const publicKey = wallet.signingKey.publicKey;
 
       const sealedKey = await this.sealingService.sealKey(encryptionKey, publicKey);
-      
+
       // 解析密封数据结构
       const sealedData = JSON.parse(Buffer.from(sealedKey, 'base64').toString());
-      
+
       // 验证必需字段
       const requiredFields = ['version', 'algorithm', 'encryptedKey', 'keyHash', 'metadata'];
       for (const field of requiredFields) {
@@ -246,26 +261,26 @@ class ZKSymmetricSealingTester {
       // 测试封装性能
       const sealStartTime = Date.now();
       const sealedKeys: string[] = [];
-      
+
       for (let i = 0; i < iterations; i++) {
         const sealedKey = await this.sealingService.sealKey(encryptionKey, publicKey);
         sealedKeys.push(sealedKey);
       }
-      
+
       const sealTime = Date.now() - sealStartTime;
       const avgSealTime = sealTime / iterations;
 
       // 测试解封装性能
       const unsealStartTime = Date.now();
       let successCount = 0;
-      
+
       for (const sealedKey of sealedKeys) {
         const unsealedKey = await this.sealingService.unsealKey(sealedKey, privateKey);
         if (encryptionKey.equals(unsealedKey)) {
           successCount++;
         }
       }
-      
+
       const unsealTime = Date.now() - unsealStartTime;
       const avgUnsealTime = unsealTime / iterations;
 
@@ -273,8 +288,11 @@ class ZKSymmetricSealingTester {
         throw new Error(`Only ${successCount}/${iterations} operations succeeded`);
       }
 
-      this.logTest('Performance Test', true, 
-        `${iterations} iterations: seal avg ${avgSealTime.toFixed(2)}ms, unseal avg ${avgUnsealTime.toFixed(2)}ms`);
+      this.logTest(
+        'Performance Test',
+        true,
+        `${iterations} iterations: seal avg ${avgSealTime.toFixed(2)}ms, unseal avg ${avgUnsealTime.toFixed(2)}ms`
+      );
     } catch (error) {
       this.logTest('Performance Test', false, (error as Error).message);
     }
@@ -285,7 +303,7 @@ class ZKSymmetricSealingTester {
    */
   async testConsistency() {
     const startTime = Date.now();
-    
+
     try {
       const encryptionKey = crypto.randomBytes(32);
       const wallet = ethers.Wallet.createRandom();
@@ -295,11 +313,11 @@ class ZKSymmetricSealingTester {
       // 多次封装相同的密钥
       const sealedKey1 = await this.sealingService.sealKey(encryptionKey, publicKey);
       const sealedKey2 = await this.sealingService.sealKey(encryptionKey, publicKey);
-      
+
       // 密封结果应该可能不同（如果包含随机性），但都应该能正确解封装
       const unsealedKey1 = await this.sealingService.unsealKey(sealedKey1, privateKey);
       const unsealedKey2 = await this.sealingService.unsealKey(sealedKey2, privateKey);
-      
+
       if (!encryptionKey.equals(unsealedKey1) || !encryptionKey.equals(unsealedKey2)) {
         throw new Error('Inconsistent unsealing results');
       }
@@ -317,7 +335,7 @@ class ZKSymmetricSealingTester {
    */
   async runAllTests() {
     console.log('🔧 Starting ZKSymmetricSealingService Tests...\n');
-    
+
     await this.testBasicSealingAndUnsealing();
     await this.testDifferentKeyLengths();
     await this.testWrongPrivateKey();
@@ -325,7 +343,7 @@ class ZKSymmetricSealingTester {
     await this.testSealedDataStructure();
     await this.testPerformance();
     await this.testConsistency();
-    
+
     this.printSummary();
   }
 
@@ -335,30 +353,33 @@ class ZKSymmetricSealingTester {
   private printSummary() {
     console.log('\n📊 Test Summary:');
     console.log('='.repeat(50));
-    
+
     const totalTests = this.results.length;
     const passedTests = this.results.filter(r => r.passed).length;
     const failedTests = totalTests - passedTests;
-    
+
     console.log(`Total Tests: ${totalTests}`);
     console.log(`Passed: ${passedTests} ✅`);
     console.log(`Failed: ${failedTests} ❌`);
     console.log(`Success Rate: ${((passedTests / totalTests) * 100).toFixed(1)}%`);
-    
+
     if (failedTests > 0) {
       console.log('\n❌ Failed Tests:');
-      this.results.filter(r => !r.passed).forEach(result => {
-        console.log(`   • ${result.testName}: ${result.message}`);
-      });
+      this.results
+        .filter(r => !r.passed)
+        .forEach(result => {
+          console.log(`   • ${result.testName}: ${result.message}`);
+        });
     }
-    
+
     // 性能统计
     const timedResults = this.results.filter(r => r.timing);
     if (timedResults.length > 0) {
-      const avgTiming = timedResults.reduce((sum, r) => sum + (r.timing || 0), 0) / timedResults.length;
+      const avgTiming =
+        timedResults.reduce((sum, r) => sum + (r.timing || 0), 0) / timedResults.length;
       console.log(`\n⏱️  Average Test Time: ${avgTiming.toFixed(2)}ms`);
     }
-    
+
     console.log('\n' + '='.repeat(50));
     console.log(failedTests === 0 ? '🎉 All tests passed!' : '⚠️  Some tests failed!');
   }

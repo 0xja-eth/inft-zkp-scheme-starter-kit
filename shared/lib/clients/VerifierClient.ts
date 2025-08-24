@@ -1,7 +1,7 @@
 import { ethers } from 'ethers';
 import { EncryptedMetadataResult } from '../types';
-import {StreamCipherEncryptionService} from "../services/crypto/encryption/StreamCipherEncryptionService";
-import {MemData} from "@0glabs/0g-ts-sdk";
+import { StreamCipherEncryptionService } from '../services/crypto/encryption/StreamCipherEncryptionService';
+import { MemData } from '@0glabs/0g-ts-sdk';
 
 /**
  * VerifyManager handles ZK proof verification and rootHash submission to ZKPVerifier contract
@@ -12,10 +12,7 @@ export class VerifierClient {
 
   private encryptionService = new StreamCipherEncryptionService();
 
-  constructor(
-    zkpVerifierAddress: string,
-    wallet: ethers.Wallet
-  ) {
+  constructor(zkpVerifierAddress: string, wallet: ethers.Wallet) {
     // Load ZKPVerifier contract
     const ZKPVerifierArtifact = require('../../../artifacts/contracts/verifiers/ZKPVerifier.sol/ZKPVerifier.json');
     this.zkpVerifier = new ethers.Contract(zkpVerifierAddress, ZKPVerifierArtifact.abi, wallet);
@@ -28,12 +25,12 @@ export class VerifierClient {
    * @param commitment - The commitment value to associate with rootHash
    * @returns Transaction hash of the submission
    */
-  async verifyAndSubmitRootHash(
-    encryptedResult: EncryptedMetadataResult
-  ): Promise<string> {
+  async verifyAndSubmitRootHash(encryptedResult: EncryptedMetadataResult): Promise<string> {
     try {
       // 1. Get commitment (MAC) from encrypted data
-      const {mac: commitment} = await this.encryptionService.parseEncryptedData(encryptedResult.encryptedData);
+      const { mac: commitment } = await this.encryptionService.parseEncryptedData(
+        encryptedResult.encryptedData
+      );
 
       // 2. Calculate rootHash from encrypted data
       const rootHash = await this.calculateRootHash(encryptedResult.encryptedData);
@@ -44,10 +41,10 @@ export class VerifierClient {
       // 4. Submit rootHash to ZKPVerifier contract
       console.log(`Submitting rootHash for mac ${commitment}...`);
       const tx = await this.zkpVerifier.setRootHash(commitment, rootHash);
-      
+
       await tx.wait();
       console.log(`RootHash submitted successfully! Transaction: ${tx.hash}`);
-      
+
       return tx.hash;
     } catch (error: any) {
       throw new Error(`Failed to verify and submit rootHash: ${error.message}`);
@@ -63,18 +60,18 @@ export class VerifierClient {
     try {
       // Convert Buffer to Uint8Array for MemData
       const data = new Uint8Array(encryptedData);
-      
+
       // Create memory file object
       const file = new MemData(data);
-      
+
       // Generate Merkle tree
       const [tree, treeErr] = await file.merkleTree();
       if (treeErr !== null) {
         throw new Error(`Merkle tree generation failed: ${treeErr}`);
       }
-      
+
       // Get the root hash
-      return tree?.rootHash() ?? "";
+      return tree?.rootHash() ?? '';
     } catch (error: any) {
       throw new Error(`RootHash calculation failed: ${error.message}`);
     }

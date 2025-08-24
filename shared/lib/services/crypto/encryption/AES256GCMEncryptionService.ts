@@ -1,8 +1,7 @@
-import {IEncryptionService} from "../ICryptoService";
-import crypto from "crypto";
+import { IEncryptionService } from '../ICryptoService';
+import crypto from 'crypto';
 
 export class AES256GCMEncryptionService implements IEncryptionService {
-
   /**
    * Generate a cryptographically secure random key
    */

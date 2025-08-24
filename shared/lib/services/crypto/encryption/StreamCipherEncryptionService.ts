@@ -1,6 +1,6 @@
-import crypto from "crypto";
-import {poseidonAsync, initPoseidon, buffer2Bigint, bigint2Buffer} from "../Poseidon";
-import { IEncryptionService } from "../ICryptoService";
+import crypto from 'crypto';
+import { poseidonAsync, initPoseidon, buffer2Bigint, bigint2Buffer } from '../Poseidon';
+import { IEncryptionService } from '../ICryptoService';
 
 /**
  * Stream cipher encryption service compatible with StreamEncVerify circuit
@@ -17,7 +17,7 @@ export class StreamCipherEncryptionService implements IEncryptionService {
   private bigintsToBuffer(bigints: bigint[], blockBytes: number): Buffer {
     const buf = Buffer.alloc(bigints.length * blockBytes);
     for (let i = 0; i < bigints.length; i++) {
-      let val = bigints[i];
+      const val = bigints[i];
 
       const valBuf = bigint2Buffer(val, blockBytes);
       valBuf.copy(buf, i * blockBytes);
@@ -40,12 +40,14 @@ export class StreamCipherEncryptionService implements IEncryptionService {
   }
 
   async encrypt(data: string, key: Buffer): Promise<Buffer> {
-    await initPoseidon()
+    await initPoseidon();
 
-    const jsonBuf = Buffer.from(data, "utf8");
-    
+    const jsonBuf = Buffer.from(data, 'utf8');
+
     if (jsonBuf.length > this.N * this.BLOCK_BYTES) {
-      throw new Error(`Data too large for ${this.N} blocks (max ${this.N * this.BLOCK_BYTES} bytes)`);
+      throw new Error(
+        `Data too large for ${this.N} blocks (max ${this.N * this.BLOCK_BYTES} bytes)`
+      );
     }
 
     // Pad data to fixed size
@@ -60,7 +62,7 @@ export class StreamCipherEncryptionService implements IEncryptionService {
     const nonce = buffer2Bigint(nonceBuf);
 
     // Convert key to single field element
-    const keyField = BigInt("0x" + key.toString("hex"));
+    const keyField = BigInt('0x' + key.toString('hex'));
 
     // 1. Generate state = Poseidon(key, nonce)
     const state = await poseidonAsync([keyField, nonce]);
@@ -108,7 +110,7 @@ export class StreamCipherEncryptionService implements IEncryptionService {
   }
 
   async decrypt(encryptedData: Buffer, key: Buffer): Promise<string> {
-    const {nonce, cipher, mac: expectedMac} = await this.parseEncryptedData(encryptedData);
+    const { nonce, cipher, mac: expectedMac } = await this.parseEncryptedData(encryptedData);
 
     // await initPoseidon()
     //
@@ -135,7 +137,7 @@ export class StreamCipherEncryptionService implements IEncryptionService {
     // const cipher = this.bufferToBigints(cipherBuf, this.BLOCK_BYTES);
 
     // Convert key to single field element
-    const keyField = BigInt("0x" + key.toString("hex"));
+    const keyField = BigInt('0x' + key.toString('hex'));
 
     // 1. Generate state = Poseidon(key, nonce)
     const state = await poseidonAsync([keyField, nonce]);
@@ -158,7 +160,7 @@ export class StreamCipherEncryptionService implements IEncryptionService {
     const computedMac = await poseidonAsync([nonce, digest]);
 
     if (computedMac !== expectedMac) {
-      throw new Error("MAC verification failed - data may be corrupted");
+      throw new Error('MAC verification failed - data may be corrupted');
     }
 
     // 4. Decrypt message
@@ -169,14 +171,14 @@ export class StreamCipherEncryptionService implements IEncryptionService {
 
     // Convert back to buffer and extract original data
     const msgBuf = this.bigintsToBuffer(msgBlocks, this.BLOCK_BYTES);
-    
+
     // Find actual data length (remove padding)
     let actualLength = msgBuf.length;
     while (actualLength > 0 && msgBuf[actualLength - 1] === 0) {
       actualLength--;
     }
 
-    return msgBuf.subarray(0, actualLength).toString("utf8");
+    return msgBuf.subarray(0, actualLength).toString('utf8');
   }
 
   async parseEncryptedData(encryptedData: Buffer): Promise<{
@@ -184,10 +186,10 @@ export class StreamCipherEncryptionService implements IEncryptionService {
     mac: bigint;
     cipher: bigint[];
   }> {
-    await initPoseidon()
+    await initPoseidon();
 
     if (encryptedData.length !== 4 + 32 + this.N * this.BLOCK_BYTES) {
-      throw new Error("Invalid encrypted data size");
+      throw new Error('Invalid encrypted data size');
     }
 
     let offset = 0;
@@ -208,13 +210,17 @@ export class StreamCipherEncryptionService implements IEncryptionService {
     const cipherBuf = encryptedData.subarray(offset);
     const cipher = this.bufferToBigints(cipherBuf, this.BLOCK_BYTES);
 
-    return { nonce, mac, cipher }
+    return { nonce, mac, cipher };
   }
 
   /**
    * Generate circuit inputs for StreamEncVerify
    */
-  async generateCircuitInputs(data: string, key: Buffer, encryptedData?: Buffer): Promise<{
+  async generateCircuitInputs(
+    data: string,
+    key: Buffer,
+    encryptedData?: Buffer
+  ): Promise<{
     nonce: string;
     mac: string;
     cipher: string[];
@@ -222,8 +228,8 @@ export class StreamCipherEncryptionService implements IEncryptionService {
     key: string;
     msg: string[];
   }> {
-    const jsonBuf = Buffer.from(data, "utf8");
-    
+    const jsonBuf = Buffer.from(data, 'utf8');
+
     if (jsonBuf.length > this.N * this.BLOCK_BYTES) {
       throw new Error(`Data too large for ${this.N} blocks`);
     }
@@ -233,17 +239,17 @@ export class StreamCipherEncryptionService implements IEncryptionService {
     jsonBuf.copy(padded);
     const msgBlocks = this.bufferToBigints(padded, this.BLOCK_BYTES);
 
-    const keyField = BigInt("0x" + key.toString("hex"));
+    const keyField = BigInt('0x' + key.toString('hex'));
 
     if (encryptedData) {
-      const {nonce, cipher, mac} = await this.parseEncryptedData(encryptedData);
+      const { nonce, cipher, mac } = await this.parseEncryptedData(encryptedData);
 
       return {
         nonce: nonce.toString(),
         mac: mac.toString(),
         cipher: cipher.map(c => c.toString()),
         key: keyField.toString(),
-        msg: msgBlocks.map(m => m.toString())
+        msg: msgBlocks.map(m => m.toString()),
       };
     }
 
@@ -280,7 +286,7 @@ export class StreamCipherEncryptionService implements IEncryptionService {
       mac: mac.toString(),
       cipher: cipher.map(c => c.toString()),
       key: keyField.toString(),
-      msg: msgBlocks.map(m => m.toString())
+      msg: msgBlocks.map(m => m.toString()),
     };
   }
 }

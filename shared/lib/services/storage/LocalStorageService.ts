@@ -13,7 +13,7 @@ export interface LocalStorageConfig {
 /**
  * 本地文件系统存储服务实现
  * 将数据存储在本地磁盘上，适合开发环境和fallback场景
- * 
+ *
  * 技术特性:
  * 1. 本地文件存储 - 直接写入本地文件系统
  * 2. 内容寻址 - 使用SHA-256哈希作为文件标识
@@ -27,7 +27,7 @@ export class LocalStorageService extends StorageService {
 
   constructor(config: LocalStorageConfig, options: StorageOptions = {}) {
     super(options);
-    
+
     this.config = {
       storageDir: config.storageDir,
       enableMetadata: config.enableMetadata ?? true,
@@ -35,7 +35,7 @@ export class LocalStorageService extends StorageService {
     };
 
     this.ensureStorageDirectory();
-    
+
     console.log(`📁 Local Storage Service initialized`);
     console.log(`   Storage directory: ${this.config.storageDir}`);
     console.log(`   Metadata enabled: ${this.config.enableMetadata}`);
@@ -62,7 +62,7 @@ export class LocalStorageService extends StorageService {
       return {
         txHash: `local-${rootHash}`,
         rootHash,
-        size: data.length
+        size: data.length,
       };
     }
 
@@ -81,7 +81,7 @@ export class LocalStorageService extends StorageService {
         timestamp: new Date().toISOString(),
         size: data.length,
         filePath: path.relative(this.config.storageDir, filePath),
-        contentHash: rootHash
+        contentHash: rootHash,
       });
     }
 
@@ -90,7 +90,7 @@ export class LocalStorageService extends StorageService {
     return {
       txHash: `local-${rootHash}`,
       rootHash,
-      size: data.length
+      size: data.length,
     };
   }
 
@@ -107,7 +107,7 @@ export class LocalStorageService extends StorageService {
     }
 
     const data = fs.readFileSync(filePath);
-    
+
     // 验证内容哈希
     const actualHash = this.generateContentHash(data);
     if (actualHash !== rootHash) {
@@ -133,7 +133,7 @@ export class LocalStorageService extends StorageService {
     console.log(`[Local-Storage] Deleting file: ${rootHash}`);
 
     const filePath = this.getFilePath(rootHash);
-    
+
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
@@ -170,19 +170,19 @@ export class LocalStorageService extends StorageService {
 
     for (const [rootHash, meta] of Object.entries(metadata) as [string, any][]) {
       const fileDate = new Date(meta.timestamp);
-      
+
       if (fileDate < cutoffDate) {
         try {
           const filePath = this.getFilePath(rootHash);
-          
+
           if (fs.existsSync(filePath)) {
             const stats = fs.statSync(filePath);
             fs.unlinkSync(filePath);
-            
+
             deletedFiles++;
             freedSpace += stats.size;
           }
-          
+
           delete metadata[rootHash];
         } catch (error: any) {
           console.warn(`[Local-Storage] Failed to delete old file ${rootHash}: ${error.message}`);
@@ -192,8 +192,10 @@ export class LocalStorageService extends StorageService {
 
     this.saveMetadata(metadata);
 
-    console.log(`[Local-Storage] Cleanup completed: ${deletedFiles} files deleted, ${freedSpace} bytes freed`);
-    
+    console.log(
+      `[Local-Storage] Cleanup completed: ${deletedFiles} files deleted, ${freedSpace} bytes freed`
+    );
+
     return { deletedFiles, freedSpace };
   }
 
@@ -211,22 +213,24 @@ export class LocalStorageService extends StorageService {
 
     const metadata = this.loadMetadata();
     const files = Object.values(metadata) as any[];
-    
+
     return {
       totalFiles: files.length,
       totalSize: files.reduce((sum, meta) => sum + (meta.size || 0), 0),
-      storageDir: this.config.storageDir
+      storageDir: this.config.storageDir,
     };
   }
 
   /**
    * 列出所有存储的文件
    */
-  async listFiles(limit: number = 100): Promise<Array<{
-    rootHash: string;
-    size: number;
-    timestamp: string;
-  }>> {
+  async listFiles(limit: number = 100): Promise<
+    Array<{
+      rootHash: string;
+      size: number;
+      timestamp: string;
+    }>
+  > {
     if (!this.config.enableMetadata) {
       throw new Error('File listing requires metadata to be enabled');
     }
@@ -236,7 +240,7 @@ export class LocalStorageService extends StorageService {
       .map(([rootHash, meta]: [string, any]) => ({
         rootHash,
         size: meta.size || 0,
-        timestamp: meta.timestamp || 'Unknown'
+        timestamp: meta.timestamp || 'Unknown',
       }))
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
       .slice(0, limit);
@@ -286,7 +290,7 @@ export class LocalStorageService extends StorageService {
 
     try {
       const metadataFile = path.join(this.config.storageDir, 'metadata.json');
-      
+
       if (fs.existsSync(metadataFile)) {
         const content = fs.readFileSync(metadataFile, 'utf8');
         return JSON.parse(content);
@@ -294,7 +298,7 @@ export class LocalStorageService extends StorageService {
     } catch (error: any) {
       console.warn(`[Local-Storage] Failed to load metadata: ${error.message}`);
     }
-    
+
     return {};
   }
 

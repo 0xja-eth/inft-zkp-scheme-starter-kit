@@ -7,7 +7,7 @@ async function main() {
     // Initialize client and get parameters
     const { agentNFTClient, wallet } = initializeAgentClient();
     const params = getScriptParams();
-    
+
     // 验证参数
     if (!params.tokenId || !params.recipientAddress) {
       console.log('Usage: npm run transfer-example <tokenId> <recipientAddress>');
@@ -24,7 +24,7 @@ async function main() {
     console.log('\nChecking current ownership...');
     const tokenInfo = await agentNFTClient.getTokenInfo(params.tokenId!);
     console.log(`Current owner: ${tokenInfo.owner}`);
-    
+
     if (tokenInfo.owner.toLowerCase() !== wallet!.address.toLowerCase()) {
       throw new Error(`You don't own token ${params.tokenId}. Current owner: ${tokenInfo.owner}`);
     }
@@ -32,7 +32,7 @@ async function main() {
     // Transfer the token
     console.log('\nExecuting transfer...');
     const txHash = await agentNFTClient.transfer(params.tokenId!, params.recipientAddress!);
-    
+
     console.log('\n✅ Transfer successful!');
     console.log(`Transaction Hash: ${txHash}`);
 
@@ -40,13 +40,12 @@ async function main() {
     console.log('\nVerifying transfer...');
     const updatedTokenInfo = await agentNFTClient.getTokenInfo(params.tokenId!);
     console.log(`New owner: ${updatedTokenInfo.owner}`);
-    
+
     if (updatedTokenInfo.owner.toLowerCase() === params.recipientAddress!.toLowerCase()) {
       console.log('✅ Transfer verified!');
     } else {
       console.log('❌ Transfer verification failed');
     }
-
   } catch (error: any) {
     console.error('❌ Transfer failed:', error.message);
     process.exit(1);
@@ -60,7 +59,7 @@ if (require.main === module) {
       console.log('\n🎉 Transfer example completed successfully!');
       process.exit(0);
     })
-    .catch((error) => {
+    .catch(error => {
       console.error('❌ Script failed:', error);
       process.exit(1);
     });

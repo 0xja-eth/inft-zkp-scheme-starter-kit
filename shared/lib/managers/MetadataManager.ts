@@ -1,7 +1,7 @@
 import { ethers } from 'ethers';
 import { IStorageService } from '../services/storage/StorageService';
 import { Metadata, EncryptedMetadataResult, DecryptedMetadata } from '../types';
-import {CryptoService} from "../services/crypto/ICryptoService";
+import { CryptoService } from '../services/crypto/ICryptoService';
 
 export class MetadataManager {
   private storage: IStorageService;
@@ -15,16 +15,16 @@ export class MetadataManager {
   /**
    * Create AI Agent metadata and store it encrypted
    */
-  async uploadAIAgent(metadata: Metadata, ownerPublicKey: string): Promise<EncryptedMetadataResult> {
+  async uploadAIAgent(
+    metadata: Metadata,
+    ownerPublicKey: string
+  ): Promise<EncryptedMetadataResult> {
     try {
       // Generate encryption key
       const encryptionKey = this.crypto.generateKey();
 
       // Encrypt metadata
-      const encryptedData = await this.crypto.encrypt(
-        JSON.stringify(metadata),
-        encryptionKey
-      );
+      const encryptedData = await this.crypto.encrypt(JSON.stringify(metadata), encryptionKey);
 
       // Store encrypted data on 0G Storage
       const storageResult = await this.storage.store(encryptedData);
@@ -78,7 +78,10 @@ export class MetadataManager {
   ): Promise<EncryptedMetadataResult & { newMetadata: Metadata }> {
     try {
       // Retrieve current metadata
-      const { metadata: currentMetadata } = await this.retrieveAIAgent(rootHash, currentEncryptionKey);
+      const { metadata: currentMetadata } = await this.retrieveAIAgent(
+        rootHash,
+        currentEncryptionKey
+      );
 
       // Merge with updates
       const newMetadata: Metadata = {
@@ -130,10 +133,7 @@ export class MetadataManager {
       const newEncryptionKey = this.crypto.generateKey();
 
       // Encrypt with new key
-      const encryptedData = await this.crypto.encrypt(
-        JSON.stringify(metadata),
-        newEncryptionKey
-      );
+      const encryptedData = await this.crypto.encrypt(JSON.stringify(metadata), newEncryptionKey);
 
       // Store re-encrypted data
       const storageResult = await this.storage.store(encryptedData);
@@ -163,7 +163,10 @@ export class MetadataManager {
   ): Promise<EncryptedMetadataResult> {
     try {
       // Retrieve source metadata
-      const { metadata: sourceMetadata } = await this.retrieveAIAgent(sourceRootHash, sourceEncryptionKey);
+      const { metadata: sourceMetadata } = await this.retrieveAIAgent(
+        sourceRootHash,
+        sourceEncryptionKey
+      );
 
       // Create cloned metadata
       const clonedMetadata: Metadata = {

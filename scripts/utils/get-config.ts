@@ -2,8 +2,8 @@ import * as dotenv from 'dotenv';
 import * as fs from 'fs';
 import * as path from 'path';
 import { getDeployedAddresses } from './get-contract-addresses';
-import {ZGStorageConfig} from "../../shared/lib/services/storage/ZGStorageService";
-import {LocalStorageConfig} from "../../shared/lib/services/storage/LocalStorageService";
+import { ZGStorageConfig } from '../../shared/lib/services/storage/ZGStorageService';
+import { LocalStorageConfig } from '../../shared/lib/services/storage/LocalStorageService';
 
 // Enhanced environment loading with support for multiple environments
 function loadEnvironment() {
@@ -16,7 +16,7 @@ function loadEnvironment() {
       envArg = args[envIndex + 1];
     }
   }
-  
+
   // Check for config file parameter
   let configArg = args.find(arg => arg.startsWith('--config='))?.split('=')[1];
   if (!configArg) {
@@ -25,10 +25,10 @@ function loadEnvironment() {
       configArg = args[configIndex + 1];
     }
   }
-  
+
   // Determine environment file to load
   let envFile = '.env'; // default
-  
+
   if (configArg) {
     // Direct config file specification
     envFile = configArg;
@@ -42,13 +42,13 @@ function loadEnvironment() {
       envFile = testFile;
     }
   }
-  
+
   // Load base .env file first (as fallback)
   const baseEnvPath = path.resolve(process.cwd(), '.env');
   if (fs.existsSync(baseEnvPath)) {
     dotenv.config({ path: baseEnvPath });
   }
-  
+
   // Load specific environment file to override base settings
   if (envFile !== '.env') {
     const envPath = path.resolve(process.cwd(), envFile);
@@ -88,15 +88,15 @@ export interface WalletConfig {
 }
 
 export interface StorageConfig {
-  zg?: ZGStorageConfig
-  local: LocalStorageConfig
+  zg?: ZGStorageConfig;
+  local: LocalStorageConfig;
 }
 
 export interface ScriptConfig {
   network: NetworkConfig;
   contracts: ContractConfig;
   wallet: WalletConfig;
-  storage: StorageConfig
+  storage: StorageConfig;
 }
 
 /**
@@ -110,7 +110,7 @@ export function getNetworkConfig(): NetworkConfig {
   return {
     rpcUrl,
     chainId,
-    explorerUrl
+    explorerUrl,
   };
 }
 
@@ -120,11 +120,13 @@ export function getNetworkConfig(): NetworkConfig {
 export function getContractConfig(chainId?: string | number): ContractConfig {
   let agentNFTAddress = process.env.AGENT_NFT_ADDRESS || '';
   let verifierAddress = process.env.VERIFIER_ADDRESS || '';
-  
+
   // 如果没有设置合约地址，自动从 Ignition 部署信息获取
   if (!agentNFTAddress || !verifierAddress) {
     try {
-      const addresses = getDeployedAddresses(chainId?.toString() || process.env.ZG_CHAIN_ID || '16601');
+      const addresses = getDeployedAddresses(
+        chainId?.toString() || process.env.ZG_CHAIN_ID || '16601'
+      );
 
       agentNFTAddress ||= addresses.agentNFT;
       verifierAddress ||= addresses.teeVerifier || addresses.zkpVerifier;
@@ -137,7 +139,7 @@ export function getContractConfig(chainId?: string | number): ContractConfig {
 
   return {
     agentNFTAddress,
-    verifierAddress
+    verifierAddress,
   };
 }
 
@@ -146,13 +148,13 @@ export function getContractConfig(chainId?: string | number): ContractConfig {
  */
 export function getWalletConfig(): WalletConfig {
   const privateKey = process.env.PRIVATE_KEY || '';
-  
+
   if (!privateKey) {
     throw new Error('PRIVATE_KEY not set in .env file');
   }
 
   return {
-    privateKey
+    privateKey,
   };
 }
 
@@ -162,15 +164,16 @@ export function getWalletConfig(): WalletConfig {
 export function getStorageConfig(): StorageConfig {
   const network = getNetworkConfig();
 
-  const disableZG = process.env.ZG_DISABLE?.toLowerCase() === "true";
+  const disableZG = process.env.ZG_DISABLE?.toLowerCase() === 'true';
 
-  const storageDir = process.env.LOCAL_STORAGE_DIR ?? "./temp/local-storage";
+  const storageDir = process.env.LOCAL_STORAGE_DIR ?? './temp/local-storage';
   const enableMetadata = process.env.LOCAL_STORAGE_ENABLE_METADATA?.toLowerCase() === 'true';
-  const enableSubdirectories = process.env.LOCAL_STORAGE_ENABLE_SUBDIRECTORIES?.toLowerCase() === 'true';
+  const enableSubdirectories =
+    process.env.LOCAL_STORAGE_ENABLE_SUBDIRECTORIES?.toLowerCase() === 'true';
 
   if (disableZG)
     return {
-      local: { storageDir, enableMetadata, enableSubdirectories }
+      local: { storageDir, enableMetadata, enableSubdirectories },
     };
 
   const rpcUrl = process.env.ZG_RPC_URL || network.rpcUrl;
@@ -178,25 +181,29 @@ export function getStorageConfig(): StorageConfig {
 
   return {
     zg: { rpcUrl, indexerUrl },
-    local: { storageDir, enableMetadata, enableSubdirectories }
+    local: { storageDir, enableMetadata, enableSubdirectories },
   };
 }
 
 /**
  * 获取完整的脚本配置
  */
-export function getScriptConfig(options: { requireWallet?: boolean; requireContract?: boolean } = {}): ScriptConfig {
+export function getScriptConfig(
+  options: { requireWallet?: boolean; requireContract?: boolean } = {}
+): ScriptConfig {
   const { requireWallet = true, requireContract = true } = options;
-  
+
   const network = getNetworkConfig();
   const contracts = getContractConfig(network.chainId);
   const storage = getStorageConfig();
-  
+
   // 验证必需的配置
   if (requireContract && !contracts.agentNFTAddress) {
-    throw new Error('Contract not deployed. Please deploy first or set AGENT_NFT_ADDRESS in .env file');
+    throw new Error(
+      'Contract not deployed. Please deploy first or set AGENT_NFT_ADDRESS in .env file'
+    );
   }
-  
+
   let wallet: WalletConfig;
   if (requireWallet) {
     wallet = getWalletConfig();
@@ -208,7 +215,7 @@ export function getScriptConfig(options: { requireWallet?: boolean; requireContr
     network,
     contracts,
     wallet,
-    storage
+    storage,
   };
 }
 
@@ -227,7 +234,7 @@ export function getScriptParams(args: string[] = process.argv.slice(2)): ScriptP
     tokenId: parseInt(args[0] || process.env.TOKEN_ID || '1'),
     recipientAddress: args[1] || process.env.RECIPIENT_ADDRESS || '',
     amount: args[2] || process.env.AMOUNT || '',
-    description: args[3] || process.env.DESCRIPTION || ''
+    description: args[3] || process.env.DESCRIPTION || '',
   };
 }
 
@@ -236,21 +243,21 @@ export function getScriptParams(args: string[] = process.argv.slice(2)): ScriptP
  */
 export function printConfig(config: ScriptConfig, hidePrivateKey: boolean = true): void {
   console.log('📋 Configuration:');
-  console.log('=' .repeat(50));
+  console.log('='.repeat(50));
   console.log(`Network: ${config.network.rpcUrl}`);
   console.log(`Chain ID: ${config.network.chainId}`);
-  console.log(`ZG Storage RPC Url: ${config.storage.zg?.rpcUrl}`)
-  console.log(`ZG Storage Index Url: ${config.storage.zg?.indexerUrl}`)
-  console.log(`Local Storage Dir: ${config.storage.local.storageDir}`)
+  console.log(`ZG Storage RPC Url: ${config.storage.zg?.rpcUrl}`);
+  console.log(`ZG Storage Index Url: ${config.storage.zg?.indexerUrl}`);
+  console.log(`Local Storage Dir: ${config.storage.local.storageDir}`);
 
   console.log(`AgentNFT: ${config.contracts.agentNFTAddress}`);
   console.log(`Verifier: ${config.contracts.verifierAddress}`);
-  
+
   if (config.wallet.privateKey && !hidePrivateKey) {
     console.log(`Private Key: ${config.wallet.privateKey}`);
   } else if (config.wallet.privateKey) {
     console.log(`Private Key: ${config.wallet.privateKey.substring(0, 10)}...`);
   }
-  
-  console.log('=' .repeat(50));
+
+  console.log('='.repeat(50));
 }

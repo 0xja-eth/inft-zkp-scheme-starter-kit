@@ -3,7 +3,7 @@ import { IStorageService } from '../services/storage/StorageService';
 import { MetadataManager } from './MetadataManager';
 import { ProofData } from '../types';
 import * as crypto from 'crypto';
-import {CryptoService} from "../services/crypto/ICryptoService";
+import { CryptoService } from '../services/crypto/ICryptoService';
 
 export interface TransferResult {
   proofs: string[];
@@ -182,10 +182,10 @@ export class TransferManager {
 
       // Combine all parts (144 bytes total)
       const proof = Buffer.concat([
-        oldHashBuffer,    // 32 bytes
-        newHashBuffer,    // 32 bytes
-        pubKeyBuffer,     // 64 bytes
-        sealedKeyBuffer,  // 16 bytes
+        oldHashBuffer, // 32 bytes
+        newHashBuffer, // 32 bytes
+        pubKeyBuffer, // 64 bytes
+        sealedKeyBuffer, // 16 bytes
       ]);
 
       return '0x' + proof.toString('hex');
@@ -207,11 +207,11 @@ export class TransferManager {
       // In production, you would:
       // 1. Query the contract for the token's sealed keys
       // 2. Unseal the key using the owner's private key
-      
+
       // For now, generate a deterministic key for testing
       const keyMaterial = `${ownerPrivateKey}-${tokenId}-${dataIndex}`;
       const keyHash = crypto.createHash('sha256').update(keyMaterial).digest();
-      
+
       return keyHash;
     } catch (error: any) {
       throw new Error(`Failed to get encryption key: ${error.message}`);
@@ -248,7 +248,7 @@ export class TransferManager {
   extractProofComponents(proof: string): ProofData {
     try {
       const proofBuffer = Buffer.from(proof.replace('0x', ''), 'hex');
-      
+
       if (proofBuffer.length !== 144) {
         throw new Error('Invalid proof length');
       }
@@ -274,7 +274,7 @@ export class TransferManager {
   ): Promise<string> {
     try {
       const wallet = new ethers.Wallet(recipientPrivateKey);
-      
+
       // Create message to sign
       const message = ethers.solidityPackedKeccak256(
         ['bytes32[]', 'bytes32[]'],

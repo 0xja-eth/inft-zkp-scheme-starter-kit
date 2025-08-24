@@ -2,15 +2,15 @@ import { ethers } from 'ethers';
 import { poseidonAsync, initPoseidon } from '../services/crypto/Poseidon';
 import { MetadataManager } from '../managers/MetadataManager';
 import { TransferManager } from '../managers/TransferManager';
-import { EncryptedMetadataResult, Metadata} from '../types';
-import {ZGStorageService} from "../services/storage/ZGStorageService";
-import {LocalStorageService} from "../services/storage/LocalStorageService";
-import {ZKCryptoService} from "../services/crypto/CryptoServices";
-import {PreimageProofGenerator} from "../services/crypto/zkp/PreimageProofGenerator";
-import {IStorageService} from "../services/storage/StorageService";
-import {CryptoService} from "../services/crypto/ICryptoService";
-import {VerifierClient} from "./VerifierClient";
-import * as sea from "node:sea";
+import { EncryptedMetadataResult, Metadata } from '../types';
+import { ZGStorageService } from '../services/storage/ZGStorageService';
+import { LocalStorageService } from '../services/storage/LocalStorageService';
+import { ZKCryptoService } from '../services/crypto/CryptoServices';
+import { PreimageProofGenerator } from '../services/crypto/zkp/PreimageProofGenerator';
+import { IStorageService } from '../services/storage/StorageService';
+import { CryptoService } from '../services/crypto/ICryptoService';
+import { VerifierClient } from './VerifierClient';
+import * as sea from 'node:sea';
 
 export class AgentNFTClient {
   private wallet?: ethers.Wallet;
@@ -32,7 +32,7 @@ export class AgentNFTClient {
     cryptoService: CryptoService = new ZKCryptoService()
   ) {
     this.wallet = wallet; // new ethers.Wallet(privateKey, provider);
-    
+
     // Load contract ABI from Hardhat artifacts
     const AgentNFTArtifact = require('../../../artifacts/contracts/AgentNFT.sol/AgentNFT.json');
     this.agentNFT = new ethers.Contract(agentNFTAddress, AgentNFTArtifact.abi, this.wallet);
@@ -43,10 +43,14 @@ export class AgentNFTClient {
 
     if (this.storageService) {
       this.metadataManager = new MetadataManager(this.storageService, this.cryptoService);
-      this.transferManager = new TransferManager(this.storageService, this.cryptoService, this.metadataManager);
+      this.transferManager = new TransferManager(
+        this.storageService,
+        this.cryptoService,
+        this.metadataManager
+      );
     }
 
-    this.verifierClient = verifierClient
+    this.verifierClient = verifierClient;
   }
 
   async upload(metadata: Metadata): Promise<EncryptedMetadataResult> {
@@ -55,16 +59,17 @@ export class AgentNFTClient {
 
     // 1. Create and encrypt AI agent metadata
     console.log('Uploading encrypted AI agent metadata...');
-    return await this.metadataManager.uploadAIAgent(
-        metadata,
-        this.wallet.signingKey.publicKey
-    );
+    return await this.metadataManager.uploadAIAgent(metadata, this.wallet.signingKey.publicKey);
   }
 
   /**
    * Mint a new AgentNFT with AI agent data
    */
-  async mint(metadata: Metadata, recipientAddress?: string, encryptedResult?: EncryptedMetadataResult): Promise<{
+  async mint(
+    metadata: Metadata,
+    recipientAddress?: string,
+    encryptedResult?: EncryptedMetadataResult
+  ): Promise<{
     tokenId: number;
     txHash: string;
     rootHash: string;
@@ -85,19 +90,19 @@ export class AgentNFTClient {
 
       // 3. Prepare data descriptions
       const dataDescriptions = [
-        `AI Agent: ${metadata.model} - ${metadata.description || 'AI Agent Model'}`
+        `AI Agent: ${metadata.model} - ${metadata.description || 'AI Agent Model'}`,
       ];
 
       // 4. Call mint function on contract
       console.log('Minting AgentNFT...');
       const tx = await this.agentNFT.mint(
-        [proof],                // proofs for data correctness verification
-        dataDescriptions,       // human-readable data descriptions
-        to                      // recipient address
+        [proof], // proofs for data correctness verification
+        dataDescriptions, // human-readable data descriptions
+        to // recipient address
       );
 
       const receipt = await tx.wait();
-      
+
       // Extract tokenId from Minted event
       const mintedEvent = receipt.logs.find((log: any) => {
         try {
@@ -152,11 +157,7 @@ export class AgentNFTClient {
       );
 
       // 3. Execute transfer
-      const tx = await this.agentNFT.transfer(
-        toAddress,
-        tokenId,
-        transferResult.proofs
-      );
+      const tx = await this.agentNFT.transfer(toAddress, tokenId, transferResult.proofs);
 
       await tx.wait();
       console.log(`Transfer completed! Transaction hash: ${tx.hash}`);
@@ -170,7 +171,11 @@ export class AgentNFTClient {
   /**
    * Clone AgentNFT for another address
    */
-  async clone(tokenId: number, toAddress: string, modifications?: any): Promise<{
+  async clone(
+    tokenId: number,
+    toAddress: string,
+    modifications?: any
+  ): Promise<{
     newTokenId: number;
     txHash: string;
   }> {
@@ -195,11 +200,7 @@ export class AgentNFTClient {
       );
 
       // 3. Execute clone
-      const tx = await this.agentNFT.clone(
-        toAddress,
-        tokenId,
-        cloneResult.proofs
-      );
+      const tx = await this.agentNFT.clone(toAddress, tokenId, cloneResult.proofs);
 
       const receipt = await tx.wait();
 
@@ -247,11 +248,14 @@ export class AgentNFTClient {
       const sealedKey = tokenInfo.sealedKeys[0];
 
       const privateKey = this.wallet.privateKey;
-      const encryptionKey = await this.cryptoService.unsealKey(sealedKey, privateKey)
+      const encryptionKey = await this.cryptoService.unsealKey(sealedKey, privateKey);
 
       // 2. Update the metadata
       const updatedResult = await this.metadataManager.updateAIAgent(
-        rootHash, encryptionKey, updatedModelData, this.wallet.signingKey.publicKey
+        rootHash,
+        encryptionKey,
+        updatedModelData,
+        this.wallet.signingKey.publicKey
       );
 
       // 3. Generate proof for updated data
@@ -281,14 +285,14 @@ export class AgentNFTClient {
         this.agentNFT.authorizedUsersOf(tokenId),
       ]);
 
-      console.log("Get token info:", {
+      console.log('Get token info:', {
         tokenId,
         owner,
         dataHashes,
         sealedKeys,
         dataDescriptions,
         authorizedUsers,
-      })
+      });
 
       return {
         tokenId,
@@ -350,7 +354,7 @@ export class AgentNFTClient {
    */
   async getExistingTokens(maxTokenId: number = 100): Promise<number[]> {
     const tokens: number[] = [];
-    
+
     for (let i = 1; i <= maxTokenId; i++) {
       try {
         await this.agentNFT.ownerOf(i);
@@ -359,7 +363,7 @@ export class AgentNFTClient {
         // Token doesn't exist, continue scanning
       }
     }
-    
+
     return tokens;
   }
 
@@ -368,7 +372,7 @@ export class AgentNFTClient {
    */
   async getOwnedTokens(ownerAddress: string, maxTokenId: number = 100): Promise<number[]> {
     const ownedTokens: number[] = [];
-    
+
     for (let i = 1; i <= maxTokenId; i++) {
       try {
         const owner = await this.agentNFT.ownerOf(i);
@@ -379,7 +383,7 @@ export class AgentNFTClient {
         // Token doesn't exist
       }
     }
-    
+
     return ownedTokens;
   }
 
@@ -402,33 +406,33 @@ export class AgentNFTClient {
    * Generate preimage proof for data correctness verification
    * This is a simplified implementation - in production, this would involve TEE/ZKP
    */
-  private async generatePreimageProof(metadata: Metadata, encryptedResult: EncryptedMetadataResult): Promise<string> {
+  private async generatePreimageProof(
+    metadata: Metadata,
+    encryptedResult: EncryptedMetadataResult
+  ): Promise<string> {
     if (!this.wallet) throw new Error('Wallet not initialized');
     if (!this.verifierClient) throw new Error('Verify client not initialized');
 
     try {
       const privateKey = this.wallet.privateKey;
       const sealedKey = encryptedResult.sealedKey;
-      const key = await this.cryptoService.unsealKey(sealedKey, privateKey)
+      const key = await this.cryptoService.unsealKey(sealedKey, privateKey);
 
-      await this.verifierClient.verifyAndSubmitRootHash(encryptedResult)
+      await this.verifierClient.verifyAndSubmitRootHash(encryptedResult);
 
       const proofGenerator = new PreimageProofGenerator();
 
       const { proof, publicSignals } = await proofGenerator.generateProof(
-          JSON.stringify(metadata), key, encryptedResult.encryptedData
-      )
+        JSON.stringify(metadata),
+        key,
+        encryptedResult.encryptedData
+      );
       const dataHash = encryptedResult.rootHash;
 
       // Create proof buffer compatible with Solidity verifyPreimage function
       // Format: dataHash(32) + sealedKey(16) + nonce(32) + mac(32) + groth16Proof(256) = 368 bytes
 
-      const proofData = this.createPreimageProofBuffer(
-        dataHash,
-        sealedKey,
-        publicSignals,
-        proof
-      );
+      const proofData = this.createPreimageProofBuffer(dataHash, sealedKey, publicSignals, proof);
 
       console.log(`Proof: ${proofData}`);
 
@@ -451,51 +455,51 @@ export class AgentNFTClient {
     // Convert inputs to proper formats
     const dataHashBytes = ethers.getBytes(dataHash); // 32 bytes
     const sealedKeyBytes = ethers.getBytes(sealedKey).slice(0, 16); // 16 bytes (truncate if longer)
-    
-    // Extract nonce and mac from publicSignals 
+
+    // Extract nonce and mac from publicSignals
     // publicSignals format: [nonce, mac] (2 elements for StreamEncVerify circuit)
     if (publicSignals.length !== 2) {
       throw new Error(`Expected 2 public signals, got ${publicSignals.length}`);
     }
-    
+
     const nonce = BigInt(publicSignals[0]);
     const mac = BigInt(publicSignals[1]);
-    
+
     // Convert to 32-byte buffers (big-endian)
     const nonceBytes = new Uint8Array(32);
     const macBytes = new Uint8Array(32);
-    
+
     // Convert BigInt to bytes (big-endian)
     this.bigIntToBytes(nonce, nonceBytes);
     this.bigIntToBytes(mac, macBytes);
-    
+
     // Extract Groth16 proof components (a, b, c)
     const proofBytes = this.encodeGroth16Proof(proof);
-    
+
     // Concatenate all components
     const totalLength = 32 + 16 + 32 + 32 + 256; // 368 bytes
     const buffer = new Uint8Array(totalLength);
     let offset = 0;
-    
+
     // dataHash (32 bytes)
     buffer.set(dataHashBytes, offset);
     offset += 32;
-    
+
     // sealedKey (16 bytes)
     buffer.set(sealedKeyBytes, offset);
     offset += 16;
-    
+
     // nonce (32 bytes)
     buffer.set(nonceBytes, offset);
     offset += 32;
-    
+
     // mac (32 bytes)
     buffer.set(macBytes, offset);
     offset += 32;
-    
+
     // groth16Proof (256 bytes)
     buffer.set(proofBytes, offset);
-    
+
     return ethers.hexlify(buffer);
   }
 
@@ -504,12 +508,12 @@ export class AgentNFTClient {
    */
   private bigIntToBytes(value: bigint, buffer: Uint8Array): void {
     if (buffer.length !== 32) {
-      throw new Error("Buffer must be 32 bytes");
+      throw new Error('Buffer must be 32 bytes');
     }
-    
+
     // Convert to big-endian bytes
     for (let i = 31; i >= 0; i--) {
-      buffer[i] = Number(value & 0xFFn);
+      buffer[i] = Number(value & 0xffn);
       value = value >> 8n;
     }
   }
@@ -521,7 +525,7 @@ export class AgentNFTClient {
   private encodeGroth16Proof(proof: any): Uint8Array {
     const proofBytes = new Uint8Array(256);
     let offset = 0;
-    
+
     // a: [2 elements] = 64 bytes
     for (let i = 0; i < 2; i++) {
       const value = BigInt(proof.pi_a[i]);
@@ -530,7 +534,7 @@ export class AgentNFTClient {
       proofBytes.set(bytes, offset);
       offset += 32;
     }
-    
+
     // b: [2][2 elements] = 128 bytes
     for (let i = 0; i < 2; i++) {
       for (let j = 0; j < 2; j++) {
@@ -541,7 +545,7 @@ export class AgentNFTClient {
         offset += 32;
       }
     }
-    
+
     // c: [2 elements] = 64 bytes
     for (let i = 0; i < 2; i++) {
       const value = BigInt(proof.pi_c[i]);
@@ -550,8 +554,7 @@ export class AgentNFTClient {
       proofBytes.set(bytes, offset);
       offset += 32;
     }
-    
+
     return proofBytes;
   }
-
 }

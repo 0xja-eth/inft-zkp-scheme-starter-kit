@@ -1,4 +1,4 @@
-import {buildPoseidon, Poseidon} from "circomlibjs";
+import { buildPoseidon, Poseidon } from 'circomlibjs';
 
 let poseidon: Poseidon | null = null;
 

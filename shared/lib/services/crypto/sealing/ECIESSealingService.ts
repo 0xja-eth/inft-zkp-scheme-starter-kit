@@ -1,8 +1,7 @@
-import {ISealingService} from "../ICryptoService";
-import crypto from "crypto";
+import { ISealingService } from '../ICryptoService';
+import crypto from 'crypto';
 
 export class ECIESSealingService implements ISealingService {
-
   /**
    * Seal key for recipient using ECIES (Elliptic Curve Integrated Encryption Scheme)
    * Production-grade implementation using secp256k1 curve
@@ -14,8 +13,8 @@ export class ECIESSealingService implements ISealingService {
       // 1. Generate ephemeral key pair
       const ephemeralKeyPair = crypto.generateKeyPairSync('ec', {
         namedCurve: 'secp256k1',
-        publicKeyEncoding: {type: 'spki', format: 'der'},
-        privateKeyEncoding: {type: 'pkcs8', format: 'der'}
+        publicKeyEncoding: { type: 'spki', format: 'der' },
+        privateKeyEncoding: { type: 'pkcs8', format: 'der' },
       });
 
       // 2. Convert recipient's public key to DER format for ECDH
@@ -25,18 +24,18 @@ export class ECIESSealingService implements ISealingService {
       const ephemeralPrivateKey = crypto.createPrivateKey({
         key: ephemeralKeyPair.privateKey,
         format: 'der',
-        type: 'pkcs8'
+        type: 'pkcs8',
       });
 
       const recipientPublicKeyObj = crypto.createPublicKey({
         key: recipientPubKeyDER,
         format: 'der',
-        type: 'spki'
+        type: 'spki',
       });
 
       const sharedSecret = crypto.diffieHellman({
         privateKey: ephemeralPrivateKey,
-        publicKey: recipientPublicKeyObj
+        publicKey: recipientPublicKeyObj,
       });
 
       // 4. Derive encryption and MAC keys using HKDF
@@ -62,16 +61,15 @@ export class ECIESSealingService implements ISealingService {
 
       // 7. Construct final sealed key: ephemeralPubKey + iv + encrypted + authTag + mac
       const sealedKey = Buffer.concat([
-        ephemeralPubKeyRaw,  // 65 bytes (0x04 + 32 + 32)
-        iv,                  // 16 bytes
-        encrypted,           // 32 bytes (same size as input key)
-        authTag,             // 16 bytes
-        mac                  // 32 bytes
+        ephemeralPubKeyRaw, // 65 bytes (0x04 + 32 + 32)
+        iv, // 16 bytes
+        encrypted, // 32 bytes (same size as input key)
+        authTag, // 16 bytes
+        mac, // 32 bytes
       ]);
 
       console.log(`✅ Key sealed successfully (${sealedKey.length} bytes)`);
       return sealedKey.toString('hex');
-
     } catch (error: any) {
       throw new Error(`Key sealing failed: ${error.message}`);
     }
@@ -107,7 +105,7 @@ export class ECIESSealingService implements ISealingService {
       const privateKeyObj = crypto.createPrivateKey({
         key: privateKeyDER,
         format: 'der',
-        type: 'pkcs8'
+        type: 'pkcs8',
       });
 
       // Convert ephemeral public key to DER format
@@ -115,13 +113,13 @@ export class ECIESSealingService implements ISealingService {
       const ephemeralPubKeyObj = crypto.createPublicKey({
         key: ephemeralPubKeyDER,
         format: 'der',
-        type: 'spki'
+        type: 'spki',
       });
 
       // Perform ECDH to derive shared secret
       const sharedSecret = crypto.diffieHellman({
         privateKey: privateKeyObj,
-        publicKey: ephemeralPubKeyObj
+        publicKey: ephemeralPubKeyObj,
       });
 
       // Derive encryption and MAC keys using HKDF
@@ -149,7 +147,6 @@ export class ECIESSealingService implements ISealingService {
 
       console.log(`✅ Key unsealed successfully (${decrypted.length} bytes)`);
       return decrypted;
-
     } catch (error: any) {
       throw new Error(`Key unsealing failed: ${error.message}`);
     }
@@ -177,21 +174,36 @@ export class ECIESSealingService implements ISealingService {
     // DER encoding for secp256k1 public key
     // SEQUENCE { SEQUENCE { OID, NULL }, BIT STRING }
     const oid = Buffer.from([
-      0x30, 0x10, // SEQUENCE 16 bytes
-      0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01, // OID for ecPublicKey
-      0x06, 0x05, 0x2b, 0x81, 0x04, 0x00, 0x0a // OID for secp256k1
+      0x30,
+      0x10, // SEQUENCE 16 bytes
+      0x06,
+      0x07,
+      0x2a,
+      0x86,
+      0x48,
+      0xce,
+      0x3d,
+      0x02,
+      0x01, // OID for ecPublicKey
+      0x06,
+      0x05,
+      0x2b,
+      0x81,
+      0x04,
+      0x00,
+      0x0a, // OID for secp256k1
     ]);
 
     const bitString = Buffer.concat([
       Buffer.from([0x03, 0x42, 0x00]), // BIT STRING, 66 bytes, 0 unused bits
-      rawPublicKey
+      rawPublicKey,
     ]);
 
     const totalLength = oid.length + bitString.length;
     const sequence = Buffer.concat([
       Buffer.from([0x30, totalLength]), // SEQUENCE
       oid,
-      bitString
+      bitString,
     ]);
 
     return sequence;
@@ -230,18 +242,33 @@ export class ECIESSealingService implements ISealingService {
       Buffer.from([0x30, 0x22]), // SEQUENCE 34 bytes
       Buffer.from([0x02, 0x01, 0x01]), // INTEGER 1
       Buffer.from([0x04, 0x20]), // OCTET STRING 32 bytes
-      privKeyBytes
+      privKeyBytes,
     ]);
 
     const privateKeyOuter = Buffer.concat([
       Buffer.from([0x04, 0x24]), // OCTET STRING 36 bytes
-      privateKeyInner
+      privateKeyInner,
     ]);
 
     const algorithm = Buffer.from([
-      0x30, 0x10, // SEQUENCE 16 bytes
-      0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01, // OID for ecPublicKey
-      0x06, 0x05, 0x2b, 0x81, 0x04, 0x00, 0x0a // OID for secp256k1
+      0x30,
+      0x10, // SEQUENCE 16 bytes
+      0x06,
+      0x07,
+      0x2a,
+      0x86,
+      0x48,
+      0xce,
+      0x3d,
+      0x02,
+      0x01, // OID for ecPublicKey
+      0x06,
+      0x05,
+      0x2b,
+      0x81,
+      0x04,
+      0x00,
+      0x0a, // OID for secp256k1
     ]);
 
     const totalLength = 1 + 1 + algorithm.length + privateKeyOuter.length + 1; // version + algorithm + privateKey
@@ -250,7 +277,7 @@ export class ECIESSealingService implements ISealingService {
       Buffer.from([0x30, totalLength + 1]), // SEQUENCE
       Buffer.from([0x02, 0x01, 0x00]), // INTEGER 0 (version)
       algorithm,
-      privateKeyOuter
+      privateKeyOuter,
     ]);
 
     return sequence;

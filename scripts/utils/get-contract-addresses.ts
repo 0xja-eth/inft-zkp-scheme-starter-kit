@@ -48,17 +48,17 @@ export function getDeployedAddresses(chainId: number | string = 16601): Deployed
  */
 export function setAgentNFTAddress(chainId: number = 16601): string {
   const addresses = getDeployedAddresses(chainId);
-  
+
   // 设置到环境变量
   process.env.AGENT_NFT_ADDRESS = addresses.agentNFT;
-  
+
   console.log(`✅ AgentNFT contract address: ${addresses.agentNFT}`);
   console.log(`📋 All deployed contracts:`);
   console.log(`   - AgentNFT (Proxy): ${addresses.agentNFT}`);
   console.log(`   - Implementation: ${addresses.agentNFTImpl}`);
   console.log(`   - TEE Verifier: ${addresses.teeVerifier}`);
   console.log(`   - Beacon: ${addresses.agentNFTBeacon}`);
-  
+
   return addresses.agentNFT;
 }
 

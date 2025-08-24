@@ -1,10 +1,8 @@
-import {ISealingService} from "../ICryptoService";
-import * as naclUtil from "tweetnacl-util";
-import * as nacl from "tweetnacl";
-
+import { ISealingService } from '../ICryptoService';
+import * as naclUtil from 'tweetnacl-util';
+import * as nacl from 'tweetnacl';
 
 export class X25519XSalsa20Poly1305SealingService implements ISealingService {
-
   /**
    * 使用X25519-XSalsa20-Poly1305封装密钥（MetaMask兼容）
    * @param encryptionKey 要封装的密钥
@@ -28,10 +26,10 @@ export class X25519XSalsa20Poly1305SealingService implements ISealingService {
 
       // 4. 使用NaCl box加密密钥
       const ciphertext = nacl.box(
-          encryptionKey,
-          nonce,
-          recipientPublicKey,
-          ephemeralKeyPair.secretKey
+        encryptionKey,
+        nonce,
+        recipientPublicKey,
+        ephemeralKeyPair.secretKey
       );
 
       // 5. 构建MetaMask兼容的payload
@@ -50,7 +48,6 @@ export class X25519XSalsa20Poly1305SealingService implements ISealingService {
       console.log(`Payload size: ${sealedKey.length} characters`);
 
       return sealedKey;
-
     } catch (error: any) {
       throw new Error(`X25519 key sealing failed: ${error.message}`);
     }
@@ -93,10 +90,10 @@ export class X25519XSalsa20Poly1305SealingService implements ISealingService {
 
       // 5. 使用NaCl box解密
       const decryptedKey = nacl.box.open(
-          ciphertext,
-          nonce,
-          ephemeralPublicKey,
-          recipientPrivateKey
+        ciphertext,
+        nonce,
+        ephemeralPublicKey,
+        recipientPrivateKey
       );
 
       if (!decryptedKey) {
@@ -105,7 +102,6 @@ export class X25519XSalsa20Poly1305SealingService implements ISealingService {
 
       console.log(`✅ Key unsealed successfully (${decryptedKey.length} bytes)`);
       return Buffer.from(decryptedKey);
-
     } catch (error: any) {
       throw new Error(`X25519 key unsealing failed: ${error.message}`);
     }
@@ -124,7 +120,8 @@ export class X25519XSalsa20Poly1305SealingService implements ISealingService {
       // 尝试十六进制格式（有或没有0x前缀）
       if (cleanKey.startsWith('0x')) {
         const hexKey = cleanKey.slice(2);
-        if (hexKey.length === 64) { // 32 bytes * 2 = 64 hex chars
+        if (hexKey.length === 64) {
+          // 32 bytes * 2 = 64 hex chars
           return new Uint8Array(Buffer.from(hexKey, 'hex'));
         }
         // 如果是以太坊公钥格式（130个字符，需要转换为X25519）
@@ -137,10 +134,12 @@ export class X25519XSalsa20Poly1305SealingService implements ISealingService {
 
       // 尝试纯十六进制格式
       if (/^[0-9a-fA-F]+$/.test(cleanKey)) {
-        if (cleanKey.length === 64) { // 32 bytes * 2 = 64 hex chars
+        if (cleanKey.length === 64) {
+          // 32 bytes * 2 = 64 hex chars
           return new Uint8Array(Buffer.from(cleanKey, 'hex'));
         }
-        if (cleanKey.length === 130) { // Ethereum public key
+        if (cleanKey.length === 130) {
+          // Ethereum public key
           const x25519Key = cleanKey.slice(-64);
           return new Uint8Array(Buffer.from(x25519Key, 'hex'));
         }
@@ -175,7 +174,8 @@ export class X25519XSalsa20Poly1305SealingService implements ISealingService {
       // 尝试十六进制格式（有或没有0x前缀）
       if (cleanKey.startsWith('0x')) {
         const hexKey = cleanKey.slice(2);
-        if (hexKey.length === 64) { // 32 bytes * 2 = 64 hex chars
+        if (hexKey.length === 64) {
+          // 32 bytes * 2 = 64 hex chars
           return new Uint8Array(Buffer.from(hexKey, 'hex'));
         }
       }

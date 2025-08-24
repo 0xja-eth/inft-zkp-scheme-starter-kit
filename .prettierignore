@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# Build outputs
+dist/
+build/
+artifacts/
+cache/
+
+# ZK proof files
+zkproof/
+circuits/*.r1cs
+circuits/*_js/
+
+# Temporary files
+temp/
+*.tmp
+*.log
+
+# Environment files
+.env
+.env.*
+
+# Git
+.git/
+.gitignore
+
+# IDE files
+.vscode/
+.idea/
+
+# Hardhat
+hardhat.config.ts
+ignition/
+
+# Compiled contracts
+typechain-types/
+
+# Coverage reports
+coverage/

@@ -1,7 +1,7 @@
 import { StorageService, StorageOptions } from './StorageService';
 import { StorageResult } from '../../types';
-import { Indexer, MemData } from "@0glabs/0g-ts-sdk";
-import { Wallet } from "ethers";
+import { Indexer, MemData } from '@0glabs/0g-ts-sdk';
+import { Wallet } from 'ethers';
 
 export interface ZGStorageConfig {
   rpcUrl: string;
@@ -11,7 +11,7 @@ export interface ZGStorageConfig {
 /**
  * 0G分布式存储服务实现
  * 基于0G Labs的去中心化存储网络
- * 
+ *
  * 技术特性:
  * 1. 去中心化存储 - 数据分布存储在0G网络节点上
  * 2. Merkle树验证 - 使用Merkle树确保数据完整性
@@ -22,11 +22,11 @@ export interface ZGStorageConfig {
 export class ZGStorageService extends StorageService {
   private wallet: Wallet;
   private indexer: Indexer;
-  private config: ZGStorageConfig
+  private config: ZGStorageConfig;
 
   constructor(wallet: Wallet, config: ZGStorageConfig, options: StorageOptions = {}) {
     super(options);
-    
+
     this.indexer = new Indexer(config.indexerUrl);
     this.wallet = wallet;
     this.config = config;
@@ -49,14 +49,14 @@ export class ZGStorageService extends StorageService {
 
     // 创建内存文件对象
     const file = new MemData(data);
-    
+
     // 生成Merkle树
     const [tree, treeErr] = await file.merkleTree();
     if (treeErr !== null) {
       throw new Error(`Merkle tree generation failed: ${treeErr}`);
     }
 
-    const rootHash = tree?.rootHash() ?? "";
+    const rootHash = tree?.rootHash() ?? '';
     if (!rootHash) {
       throw new Error('Failed to generate root hash');
     }
@@ -64,11 +64,7 @@ export class ZGStorageService extends StorageService {
     console.log(`[0G-Storage] Generated root hash: ${rootHash}`);
 
     // 上传到0G网络
-    const [txHash, uploadErr] = await this.indexer.upload(
-      file, 
-      this.config.rpcUrl, 
-      this.wallet
-    );
+    const [txHash, uploadErr] = await this.indexer.upload(file, this.config.rpcUrl, this.wallet);
 
     if (uploadErr !== null) {
       throw new Error(`0G network upload failed: ${uploadErr}`);
@@ -79,7 +75,7 @@ export class ZGStorageService extends StorageService {
     return {
       txHash: txHash!,
       rootHash,
-      size: data.length
+      size: data.length,
     };
   }
 
@@ -99,7 +95,7 @@ export class ZGStorageService extends StorageService {
 
     // 从0G网络获取文件
     const response = await fetch(apiUrl);
-    
+
     // 检查响应类型
     const contentType = response.headers.get('content-type');
     const isJsonResponse = contentType?.includes('application/json');
@@ -107,7 +103,7 @@ export class ZGStorageService extends StorageService {
     // 处理JSON错误响应
     if (isJsonResponse) {
       const jsonData = await response.json();
-      
+
       if (!response.ok || jsonData.code) {
         if (jsonData.code === 101) {
           throw new Error(`File not found in 0G network: ${rootHash}`);
@@ -124,14 +120,14 @@ export class ZGStorageService extends StorageService {
 
     // 获取文件数据
     const fileData = await response.arrayBuffer();
-    
+
     if (!fileData || fileData.byteLength === 0) {
       throw new Error('Retrieved file is empty');
     }
 
     const buffer = Buffer.from(fileData);
     console.log(`[0G-Storage] Retrieved ${buffer.length} bytes successfully`);
-    
+
     return buffer;
   }
 }

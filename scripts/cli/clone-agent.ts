@@ -6,7 +6,7 @@ async function main() {
     // Initialize client and get parameters
     const { agentNFTClient, wallet } = initializeAgentClient();
     const params = getScriptParams();
-    
+
     // 验证参数
     if (!params.tokenId || !params.recipientAddress) {
       console.log('Usage: npm run clone-example <tokenId> <recipientAddress>');
@@ -24,7 +24,7 @@ async function main() {
     const tokenInfo = await agentNFTClient.getTokenInfo(params.tokenId!);
     console.log(`Current owner: ${tokenInfo.owner}`);
     console.log(`Data descriptions: ${tokenInfo.dataDescriptions.join(', ')}`);
-    
+
     if (tokenInfo.owner.toLowerCase() !== wallet!.address.toLowerCase()) {
       throw new Error(`You don't own token ${params.tokenId}. Current owner: ${tokenInfo.owner}`);
     }
@@ -32,19 +32,27 @@ async function main() {
     // Optional modifications for the clone
     const modifications = {
       description: 'Cloned AI agent with enhanced capabilities',
-      tags: [...(tokenInfo.dataDescriptions[0]?.includes('finance') ? ['finance'] : []), 'cloned', 'enhanced'],
+      tags: [
+        ...(tokenInfo.dataDescriptions[0]?.includes('finance') ? ['finance'] : []),
+        'cloned',
+        'enhanced',
+      ],
       config: {
         temperature: 0.8, // Slightly higher creativity for clone
         specialization: 'enhanced-analysis',
-      }
+      },
     };
 
     // Clone the token
     console.log('\nExecuting clone with modifications...');
     console.log('Modifications:', JSON.stringify(modifications, null, 2));
-    
-    const result = await agentNFTClient.clone(params.tokenId!, params.recipientAddress!, modifications);
-    
+
+    const result = await agentNFTClient.clone(
+      params.tokenId!,
+      params.recipientAddress!,
+      modifications
+    );
+
     console.log('\n✅ Clone successful!');
     console.log(`New Token ID: ${result.newTokenId}`);
     console.log(`Transaction Hash: ${result.txHash}`);
@@ -54,7 +62,7 @@ async function main() {
     const clonedTokenInfo = await agentNFTClient.getTokenInfo(result.newTokenId);
     console.log(`Clone owner: ${clonedTokenInfo.owner}`);
     console.log(`Clone data descriptions: ${clonedTokenInfo.dataDescriptions.join(', ')}`);
-    
+
     if (clonedTokenInfo.owner.toLowerCase() === params.recipientAddress!.toLowerCase()) {
       console.log('✅ Clone verified!');
     } else {
@@ -63,9 +71,12 @@ async function main() {
 
     // Show comparison
     console.log('\n📊 Comparison:');
-    console.log(`Original Token ${params.tokenId}: Owner=${tokenInfo.owner}, Descriptions=${tokenInfo.dataDescriptions.length}`);
-    console.log(`Cloned Token ${result.newTokenId}: Owner=${clonedTokenInfo.owner}, Descriptions=${clonedTokenInfo.dataDescriptions.length}`);
-
+    console.log(
+      `Original Token ${params.tokenId}: Owner=${tokenInfo.owner}, Descriptions=${tokenInfo.dataDescriptions.length}`
+    );
+    console.log(
+      `Cloned Token ${result.newTokenId}: Owner=${clonedTokenInfo.owner}, Descriptions=${clonedTokenInfo.dataDescriptions.length}`
+    );
   } catch (error: any) {
     console.error('❌ Clone failed:', error.message);
     process.exit(1);
@@ -79,7 +90,7 @@ if (require.main === module) {
       console.log('\n🎉 Clone example completed successfully!');
       process.exit(0);
     })
-    .catch((error) => {
+    .catch(error => {
       console.error('❌ Script failed:', error);
       process.exit(1);
     });

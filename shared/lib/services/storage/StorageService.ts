@@ -14,7 +14,7 @@ export interface StorageOptions {
 
 /**
  * 基础存储服务类，提供自动fallback和超时机制
- * 
+ *
  * 功能特性:
  * 1. 自动超时处理 - 超过指定时间自动切换到fallback
  * 2. 多级fallback链 - 支持链式fallback，失败时依次尝试下一个服务
@@ -66,10 +66,7 @@ export abstract class StorageService implements IStorageService {
   /**
    * 执行操作，带有超时和fallback机制的核心逻辑
    */
-  private async executeWithFallback<T>(
-    operation: 'store' | 'retrieve',
-    args: any[]
-  ): Promise<T> {
+  private async executeWithFallback<T>(operation: 'store' | 'retrieve', args: any[]): Promise<T> {
     const allServices = [this, ...this.options.fallbackServices];
     const errors: Array<{ service: string; error: Error }> = [];
 
@@ -94,14 +91,13 @@ export abstract class StorageService implements IStorageService {
 
           console.log(`✅ ${serviceName} ${operation} successful`);
           return result;
-
         } catch (error: any) {
           const errorMsg = error.message || 'Unknown error';
           console.warn(`❌ ${serviceName} attempt ${retry + 1} failed: ${errorMsg}`);
 
           errors.push({
             service: serviceName,
-            error: error instanceof Error ? error : new Error(String(error))
+            error: error instanceof Error ? error : new Error(String(error)),
           });
 
           // 如果不是最后一次重试，等待一段时间
@@ -120,9 +116,7 @@ export abstract class StorageService implements IStorageService {
       .map(({ service, error }) => `${service}: ${error.message}`)
       .join('; ');
 
-    throw new Error(
-      `All storage services failed for ${operation}. Errors: ${errorSummary}`
-    );
+    throw new Error(`All storage services failed for ${operation}. Errors: ${errorSummary}`);
   }
 
   /**
@@ -136,7 +130,7 @@ export abstract class StorageService implements IStorageService {
   ): Promise<T> {
     return Promise.race([
       this.callServiceOperation<T>(service, operation, args),
-      this.createTimeoutPromise<T>(timeoutMs, `${operation} operation`)
+      this.createTimeoutPromise<T>(timeoutMs, `${operation} operation`),
     ]);
   }
 
@@ -212,7 +206,9 @@ export abstract class StorageService implements IStorageService {
    */
   addFallbackService(service: IStorageService): void {
     this.options.fallbackServices.push(service);
-    console.log(`📎 Added fallback service: ${this.getServiceNameForService(service, this.options.fallbackServices.length)}`);
+    console.log(
+      `📎 Added fallback service: ${this.getServiceNameForService(service, this.options.fallbackServices.length)}`
+    );
   }
 
   /**

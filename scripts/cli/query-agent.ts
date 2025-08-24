@@ -11,7 +11,7 @@ async function main() {
 
     // 获取合约信息
     console.log('\n📄 Contract Information:');
-    console.log('=' .repeat(50));
+    console.log('='.repeat(50));
 
     const contractInfo = await agentNFTClient.getContractInfo();
     console.log(`NFT Name: ${contractInfo.name}`);
@@ -26,7 +26,7 @@ async function main() {
 
     // 查询现有 tokens
     console.log('\n🔍 Checking for existing tokens...');
-    console.log('=' .repeat(50));
+    console.log('='.repeat(50));
 
     const existingTokens = await agentNFTClient.getExistingTokens(10);
 
@@ -43,7 +43,9 @@ async function main() {
           console.log(`\n📝 Token ${tokenId}:`);
           console.log(`   Owner: ${tokenInfo.owner}`);
           console.log(`   Data Items: ${tokenInfo.dataHashes.length}`);
-          console.log(`   Descriptions: ${tokenInfo.dataDescriptions.length > 0 ? tokenInfo.dataDescriptions[0] : 'None'}`);
+          console.log(
+            `   Descriptions: ${tokenInfo.dataDescriptions.length > 0 ? tokenInfo.dataDescriptions[0] : 'None'}`
+          );
           console.log(`   Authorized Users: ${tokenInfo.authorizedUsers.length}`);
         } catch (error) {
           console.log(`\n❌ Error getting info for token ${tokenId}: ${(error as Error).message}`);
@@ -54,12 +56,12 @@ async function main() {
     if (wallet) {
       // 钱包信息
       console.log('\n👤 Wallet Information:');
-      console.log('=' .repeat(50));
+      console.log('='.repeat(50));
       console.log(`Address: ${wallet.address}`);
-      
+
       const balance = await provider.getBalance(wallet.address);
       console.log(`Balance: ${balance} OG`);
-      
+
       // 获取拥有的 tokens
       const ownedTokens = await agentNFTClient.getOwnedTokens(wallet.address, 10);
       if (ownedTokens.length > 0) {
@@ -68,9 +70,8 @@ async function main() {
         console.log('Owned Tokens: None');
       }
     }
-    
+
     console.log('\n✅ Contract query completed!');
-    
   } catch (error: any) {
     console.error('❌ Error:', error.message);
     process.exit(1);
@@ -84,7 +85,7 @@ if (require.main === module) {
       console.log('\n🎉 Query completed successfully!');
       process.exit(0);
     })
-    .catch((error) => {
+    .catch(error => {
       console.error('❌ Script failed:', error);
       process.exit(1);
     });

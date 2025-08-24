@@ -10,19 +10,18 @@ export interface ISealingService {
 }
 
 export abstract class CryptoService implements IEncryptionService, ISealingService {
-
-  protected encryptionService: IEncryptionService | undefined
-  protected sealingService: ISealingService | undefined
+  protected encryptionService: IEncryptionService | undefined;
+  protected sealingService: ISealingService | undefined;
 
   generateKey(): Buffer {
-    return this.encryptionService!.generateKey()
+    return this.encryptionService!.generateKey();
   }
 
   encrypt(data: string, key: Buffer): Promise<Buffer> {
-    return this.encryptionService!.encrypt(data, key)
+    return this.encryptionService!.encrypt(data, key);
   }
   decrypt(encryptedData: Buffer, key: Buffer): Promise<string> {
-    return this.encryptionService!.decrypt(encryptedData, key)
+    return this.encryptionService!.decrypt(encryptedData, key);
   }
   sealKey(encryptionKey: Buffer, publicKey: string): Promise<string> {
     return this.sealingService!.sealKey(encryptionKey, publicKey);

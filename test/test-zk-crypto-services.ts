@@ -1,6 +1,9 @@
 #!/usr/bin/env npx ts-node
 
-import { FeistelCryptoService, ZKCryptoService } from '../shared/lib/services/crypto/CryptoServices';
+import {
+  FeistelCryptoService,
+  ZKCryptoService,
+} from '../shared/lib/services/crypto/CryptoServices';
 import * as crypto from 'crypto';
 
 async function testZKCryptoServices() {
@@ -9,8 +12,8 @@ async function testZKCryptoServices() {
   try {
     // Test XOR-based ZK Crypto Service
     console.log('1️⃣ Testing XOR ZK Crypto Service...');
-    console.log('=' .repeat(60));
-    
+    console.log('='.repeat(60));
+
     const zkService = new ZKCryptoService();
     console.log('✅ XOR ZK Crypto Service initialized');
     console.log('  • Uses XOR encryption (ZK-friendly, O(n) constraints)');
@@ -18,7 +21,7 @@ async function testZKCryptoServices() {
     console.log('  • Optimized for fast ZK proof generation');
 
     // Test encryption/decryption
-    const testMessage = "Hello ZK World! Testing XOR encryption.";
+    const testMessage = 'Hello ZK World! Testing XOR encryption.';
     const key = zkService.generateKey();
     console.log(`\nTest Message: "${testMessage}"`);
     console.log(`Generated Key: ${key.toString('hex')}`);
@@ -32,7 +35,7 @@ async function testZKCryptoServices() {
 
     // Test key sealing
     const dataKey = crypto.randomBytes(32);
-    const publicKey = "shared-secret-key-for-zk-sealing";
+    const publicKey = 'shared-secret-key-for-zk-sealing';
     console.log(`\nData Key: ${dataKey.toString('hex')}`);
     console.log(`Public Key: ${publicKey}`);
 
@@ -41,12 +44,14 @@ async function testZKCryptoServices() {
 
     const unsealedKey = await zkService.unsealKey(sealedKey, publicKey);
     console.log(`Unsealed Key: ${unsealedKey.toString('hex')}`);
-    console.log(`Key Sealing/Unsealing: ${dataKey.equals(unsealedKey) ? '✅ SUCCESS' : '❌ FAILED'}`);
+    console.log(
+      `Key Sealing/Unsealing: ${dataKey.equals(unsealedKey) ? '✅ SUCCESS' : '❌ FAILED'}`
+    );
 
     // Test Feistel Crypto Service
     console.log('\n\n2️⃣ Testing Feistel ZK Crypto Service...');
-    console.log('=' .repeat(60));
-    
+    console.log('='.repeat(60));
+
     const feistelService = new FeistelCryptoService();
     console.log('✅ Feistel ZK Crypto Service initialized');
     console.log('  • Uses Feistel network encryption (4 rounds)');
@@ -54,7 +59,7 @@ async function testZKCryptoServices() {
     console.log('  • O(2n) constraints for better security');
 
     // Test Feistel encryption
-    const feistelMessage = "Testing Feistel network encryption for ZK proofs!";
+    const feistelMessage = 'Testing Feistel network encryption for ZK proofs!';
     const feistelKey = feistelService.generateKey();
     console.log(`\nTest Message: "${feistelMessage}"`);
 
@@ -63,14 +68,16 @@ async function testZKCryptoServices() {
 
     const feistelDecrypted = await feistelService.decrypt(feistelEncrypted, feistelKey);
     console.log(`Decrypted: "${feistelDecrypted}"`);
-    console.log(`Encryption/Decryption: ${feistelMessage === feistelDecrypted ? '✅ SUCCESS' : '❌ FAILED'}`);
+    console.log(
+      `Encryption/Decryption: ${feistelMessage === feistelDecrypted ? '✅ SUCCESS' : '❌ FAILED'}`
+    );
 
     // Performance comparison
     console.log('\n\n3️⃣ Performance Comparison...');
-    console.log('=' .repeat(60));
+    console.log('='.repeat(60));
 
     const iterations = 100;
-    const testData = "Performance test data for comparison";
+    const testData = 'Performance test data for comparison';
     const testKey = crypto.randomBytes(32);
 
     // XOR performance
@@ -89,12 +96,16 @@ async function testZKCryptoServices() {
     }
     const feistelTime = Date.now() - feistelStart;
 
-    console.log(`XOR Service: ${xorTime}ms for ${iterations} operations (${(xorTime/iterations).toFixed(2)}ms avg)`);
-    console.log(`Feistel Service: ${feistelTime}ms for ${iterations} operations (${(feistelTime/iterations).toFixed(2)}ms avg)`);
+    console.log(
+      `XOR Service: ${xorTime}ms for ${iterations} operations (${(xorTime / iterations).toFixed(2)}ms avg)`
+    );
+    console.log(
+      `Feistel Service: ${feistelTime}ms for ${iterations} operations (${(feistelTime / iterations).toFixed(2)}ms avg)`
+    );
 
     // Summary
     console.log('\n\n📊 ZK Crypto Services Summary...');
-    console.log('=' .repeat(60));
+    console.log('='.repeat(60));
     console.log('✅ XOR ZK Crypto Service:');
     console.log('  • Fastest performance');
     console.log('  • Lowest circuit constraints (O(n))');
@@ -113,7 +124,6 @@ async function testZKCryptoServices() {
     console.log('  • Both support key sealing verification circuits');
 
     console.log('\n🎉 All ZK crypto services are working correctly!');
-
   } catch (error: any) {
     console.error('❌ Test failed:', error.message);
     console.error(error.stack);
