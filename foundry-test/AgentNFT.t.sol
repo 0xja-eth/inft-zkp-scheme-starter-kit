@@ -16,7 +16,7 @@ contract AgentNFTTest is Test {
     address public user = address(0x2);
     
     // Your proof data - 456 bytes
-    bytes constant PROOF_DATA = hex"7839ea49ad9dcc298cb8157c90f2cc14a9c2203d30a8cf23ae6f452f8cbf9b89c4712e7d11457a74cfa79dcb71b2ccf8528404ae4258f16998bdd160fa3c9067b832e654a09c32e775ba6dfa19af79573b09f35c4e8a856a335337e1016b5af91ea64a17f1467cf0295552af77fd39617253e02449456c7edb6c7a1e85bc4392ee4ecd3ea13860b200000000000000000000000000000000000000000000000000000000af8a32f32482f107a5617443d1fe46a1a6fb5097854b9a00dbae2ec13330ace346686fc72beed9562d12f8e52dda0c514c495e772ff5c7e15748c4339a1b06970fef608313f49a46af830c7b2ff13fe9a00055cc27cb70836b0ffd2f5cc76d62cb5f60fb2f7331cc4ac805d26d0d8ef2640475cdf4d7040744e9fc382ada23817a7ca29d2b29c11ada4071d177a990e550b4dea42956e1b102bed70e36c121701fb78974272e140a5dc0acdcbd0d9978a849aca2672305d1af184ccf63db66894b691c9a0721b08bcea11228993989e474c0d05a37f24db58f3bd92edc0fcc1478b8b2c4051d52ed7190e114014b531350d0a22f3556322d60d820826784d279b919544e160d5fcbcdc0e653d3fd3fc301e53965e4e887e78d0edd3f17e574fee49a198c";
+    bytes internal constant PROOF_DATA = hex"7b79d8dcf55b4fee331faa932fc20e6ade3c2ef3ccc273b986913102bd6c58a8ba0e95d2c9976321daf6d2243d2ae37ef3e7145cb990c99eab8890a15f37e69af5482d95d3d2077249f45699d1cc37563f49df26d05c6b3165651e5bb4663ba9071c6634462ae03ebfe7e248108414c73eb84ea50a1c3cbeaf20b825a1a2b6dabafdf86d5640f04800000000000000000000000000000000000000000000000000000000a36fc33408de71c0986e3e18159310b3d22f4efd2426e76641f5134b6701f571b1114d89114f45df0d688a5370f9d2ab7f299c98f52f1915be5016161e5e2b6b80c2515323dcc9cc61fd5b97dddcc16d5deef4e2b31f0a45641b17a4d234fcafdb7dc74d1f09e053294dee6f7c315bf41d8b01956aeef3a5fd63980e07b2c70552110fb50a44a9da775a1e044a37b2d568844e5d8847939ce4e6d55e3dac75eb2b29d9da2edaa668032311853591bc88214152e9dd505f255a897a283862e3411ad8ef1b2d61d7ffcc09f021dd8d78d392722b160b958c36dc059bb48064b97fea59b2221890de9095ae796ae17d674d3e8224e4fad388be77a45a8ad67e60aaafaa85f32eb829cc059b38294cf9b164bcfa663088c2608591752a13407a0073b0599017";
 
     function setUp() public {
         vm.startPrank(owner);
@@ -42,138 +42,162 @@ contract AgentNFTTest is Test {
         
         agentNFT = AgentNFT(deployProxy(address(impl), initData));
         
-        console.log("Deployed PreimageVerifier at:", address(preimageVerifier));
-        console.log("Deployed ZKPVerifier at:", address(zkpVerifier));
-        console.log("Deployed AgentNFT at:", address(agentNFT));
+        vm.stopPrank();
+    }
+    
+    function testInitialization() public {
+        // Assert contract initialization
+        assertEq(agentNFT.name(), "Test Agent NFT", "Incorrect contract name");
+        assertEq(agentNFT.symbol(), "TNFT", "Incorrect contract symbol");
+        assertEq(address(agentNFT.verifier()), address(zkpVerifier), "Incorrect verifier address");
+    }
+    
+    function testMintWithValidProof() public {
+        // Arrange
+        bytes[] memory proofs = new bytes[](1);
+        proofs[0] = PROOF_DATA;
+        
+        string[] memory descriptions = new string[](1);
+        descriptions[0] = "Test AI Agent";
+        
+//        uint256 initialBalance = agentNFT.balanceOf(user);
+        
+        vm.startPrank(user);
+        
+        // Act
+        uint256 tokenId = agentNFT.mint(proofs, descriptions, user);
+        
+        // Assert
+        assertEq(agentNFT.ownerOf(tokenId), user, "Token should belong to minter");
+//        assertEq(agentNFT.balanceOf(user), initialBalance + 1, "User balance should increase by 1");
+        assertTrue(tokenId == 0, "Token ID should be greater than 0");
         
         vm.stopPrank();
     }
     
-    function testMintWithYourProof() public {
-        console.log("Testing AgentNFT.mint with your proof data");
-        console.log("Proof data length:", PROOF_DATA.length, "bytes");
-        
-        // Create proofs array
+    function testZKPVerifierWithValidProof() public {
+        // Arrange
         bytes[] memory proofs = new bytes[](1);
         proofs[0] = PROOF_DATA;
         
-        // Create descriptions
+        vm.startPrank(user);
+        
+        // Act
+        PreimageProofOutput[] memory outputs = zkpVerifier.verifyPreimage(proofs);
+        
+        // Assert
+        assertEq(outputs.length, 1, "Should return 1 output");
+        assertTrue(outputs[0].isValid, "Proof should be valid");
+        assertEq(outputs[0].sealedKey.length, 104, "Sealed key should be 104 bytes");
+        assertGt(uint256(outputs[0].dataHash), 0, "Data hash should not be zero");
+        
+        vm.stopPrank();
+    }
+    
+    function testMintFailsWithInvalidProof() public {
+        // Arrange - create invalid proof (too short)
+        bytes[] memory proofs = new bytes[](1);
+        proofs[0] = hex"deadbeef"; // Invalid short proof
+        
         string[] memory descriptions = new string[](1);
         descriptions[0] = "Test AI Agent";
         
         vm.startPrank(user);
         
-        console.log("Minting as user:", user);
-        console.log("Calling AgentNFT.mint...");
-        
-        try agentNFT.mint(proofs, descriptions, user) returns (uint256 tokenId) {
-            console.log("SUCCESS: Minted token ID:", tokenId);
-            
-            // Verify mint results
-            console.log("Verifying mint results...");
-            
-            // Check that token exists and has correct owner
-            try agentNFT.ownerOf(tokenId) returns (address tokenOwner) {
-                console.log("Token owner:", tokenOwner);
-                assertEq(tokenOwner, user, "Token should belong to minter");
-                console.log("Ownership verified");
-            } catch {
-                console.log("Failed to get token owner - token may not exist");
-            }
-            
-            console.log("MINT TEST PASSED!");
-            
-        } catch Error(string memory reason) {
-            console.log("MINT FAILED:", reason);
-            
-            // Let's debug by testing the verifier directly
-            console.log("Testing ZKPVerifier directly...");
-            testVerifierDirectly();
-            
-        } catch (bytes memory lowLevelData) {
-            console.log("MINT FAILED with low-level error:");
-            console.logBytes(lowLevelData);
-        }
+        // Act & Assert - should revert
+        vm.expectRevert("Invalid proof length");
+        agentNFT.mint(proofs, descriptions, user);
         
         vm.stopPrank();
     }
     
-    function testVerifierDirectly() public {
-        console.log("Testing ZKPVerifier.verifyPreimage directly");
-        
-        bytes[] memory proofs = new bytes[](1);
-        proofs[0] = PROOF_DATA;
+    function testMintFailsWithEmptyArrays() public {
+        // Arrange
+        bytes[] memory proofs = new bytes[](0); // Empty proofs array
+        string[] memory descriptions = new string[](0);
         
         vm.startPrank(user);
         
-        try zkpVerifier.verifyPreimage(proofs) returns (PreimageProofOutput[] memory outputs) {
-            console.log("Verifier call successful");
-            console.log("Number of outputs:", outputs.length);
-            
-            for (uint i = 0; i < outputs.length; i++) {
-                console.log("--- Output", i, "---");
-                console.log("Data Hash:");
-                console.logBytes32(outputs[i].dataHash);
-                console.log("Sealed Key length:", outputs[i].sealedKey.length);
-                console.log("Nonce:", outputs[i].nonce);
-                console.log("MAC:", outputs[i].mac);
-                console.log("Verifier used:", outputs[i].verifier);
-                console.log("Is Valid:", outputs[i].isValid);
-                
-                if (outputs[i].isValid) {
-                    console.log("PROOF VERIFIED BY VERIFIER!");
-                } else {
-                    console.log("PROOF REJECTED BY VERIFIER");
-                }
-            }
-        } catch Error(string memory reason) {
-            console.log("Verifier failed:", reason);
-        } catch (bytes memory lowLevelData) {
-            console.log("Verifier failed with low-level error:");
-            console.logBytes(lowLevelData);
-        }
+        // Act & Assert - should revert or handle gracefully
+        vm.expectRevert();
+        agentNFT.mint(proofs, descriptions, user);
         
         vm.stopPrank();
     }
-
-//    function testProofFormat() public view {
-//        console.log("Analyzing your proof format:");
-//        console.log("Total length:", PROOF_DATA.length, "bytes");
-//
-//        bytes calldata proof = PROOF_DATA;
-//
-//        // Extract key components based on ZKPVerifier parsing
-//        bytes32 dataHash = bytes32(proof[0:32]);
-//        uint256 nonce = uint256(bytes32(proof[136:168]));
-//        uint256 mac = uint256(bytes32(proof[168:200]));
-//
-//        console.log("Key components:");
-//        console.log("Data Hash:");
-//        console.logBytes32(dataHash);
-//        console.log("Sealed Key (32-135): 104 bytes");
-//        console.log("Nonce:", nonce);
-//        console.log("MAC:", mac);
-//        console.log("ZK Proof components (200-455): 256 bytes");
-//
-//        // Verify structure expectations
-//        if (PROOF_DATA.length >= 456) {
-//            console.log("Proof meets minimum length requirement");
-//        } else {
-//            console.log("Proof too short, need at least 456 bytes");
-//        }
-//    }
-
-    function testInitialization() public view {
-        console.log("Testing AgentNFT initialization...");
+    
+    function testMintFailsWithMismatchedArrays() public {
+        // Arrange - mismatched array lengths
+        bytes[] memory proofs = new bytes[](1);
+        proofs[0] = PROOF_DATA;
         
-        assertEq(agentNFT.name(), "Test Agent NFT");
-        assertEq(agentNFT.symbol(), "TNFT");
-        assertEq(address(agentNFT.verifier()), address(zkpVerifier));
+        string[] memory descriptions = new string[](2); // Different length
+        descriptions[0] = "Test AI Agent";
+        descriptions[1] = "Another Agent";
         
-        console.log("AgentNFT initialized correctly");
-        console.log("  Name:", agentNFT.name());
-        console.log("  Symbol:", agentNFT.symbol());
-        console.log("  Verifier:", address(agentNFT.verifier()));
+        vm.startPrank(user);
+        
+        // Act & Assert - should revert
+        vm.expectRevert();
+        agentNFT.mint(proofs, descriptions, user);
+        
+        vm.stopPrank();
+    }
+    
+    function testMultipleProofMinting() public {
+        // Arrange
+        bytes[] memory proofs = new bytes[](2);
+        proofs[0] = PROOF_DATA;
+        proofs[1] = PROOF_DATA; // Reuse same proof for simplicity
+        
+        string[] memory descriptions = new string[](2);
+        descriptions[0] = "AI Agent Prompts";
+        descriptions[1] = "AI Agent Memories";
+        
+        vm.startPrank(user);
+        
+        // Act
+        uint256 tokenId = agentNFT.mint(proofs, descriptions, user);
+        
+        // Assert
+        assertEq(agentNFT.ownerOf(tokenId), user, "First token should belong to user");
+
+        vm.stopPrank();
+    }
+    
+    function testMintToSpecificAddress() public {
+        // Arrange
+        address recipient = address(0x3);
+        bytes[] memory proofs = new bytes[](1);
+        proofs[0] = PROOF_DATA;
+        
+        string[] memory descriptions = new string[](1);
+        descriptions[0] = "Test AI Agent";
+        
+        vm.startPrank(user);
+        
+        // Act
+        uint256 tokenId = agentNFT.mint(proofs, descriptions, recipient);
+        
+        // Assert
+        assertEq(agentNFT.ownerOf(tokenId), recipient, "Token should belong to specified recipient");
+//        assertEq(agentNFT.balanceOf(recipient), 1, "Recipient should have 1 token");
+//        assertEq(agentNFT.balanceOf(user), 0, "Minter should have 0 tokens");
+        
+        vm.stopPrank();
+    }
+    
+    function testZKPVerifierFailsWithInvalidProof() public {
+        // Arrange
+        bytes[] memory proofs = new bytes[](1);
+        proofs[0] = hex"deadbeef"; // Invalid short proof
+        
+        vm.startPrank(user);
+        
+        // Act & Assert
+        vm.expectRevert("Invalid proof length");
+        zkpVerifier.verifyPreimage(proofs);
+        
+        vm.stopPrank();
     }
 
     // Utility function to deploy a minimal proxy (simulates upgradeable pattern without upgrades library)

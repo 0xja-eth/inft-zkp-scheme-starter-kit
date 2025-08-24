@@ -65,35 +65,6 @@ contract ZKPVerifier is BaseVerifier, Ownable {
                 uint256(bytes32(proof[424:456]))
             ];
 
-//            bytes32 dataHash;
-//            bytes sealedKey;
-//            uint256 nonce;
-//            uint256 mac;
-//            uint256[2] memory a;
-//            uint256[2][2] memory b;
-//            uint256[2] memory c;
-//
-//            assembly {
-//                // 直接从 calldata 按偏移读取
-//                dataHash := calldataload(proof.offset)                      // 0..31
-//                sealedKey := calldataload(add(proof.offset, 32))            // 32..47
-//                nonce := calldataload(add(proof.offset, 48))                // 48..79
-//                mac := calldataload(add(proof.offset, 80))                  // 80..111
-//
-//                mstore(a, calldataload(add(proof.offset, 112)))             // a[0] 112..143
-//                mstore(add(a, 0x20), calldataload(add(proof.offset, 144)))  // a[1] 144..175
-//
-//                mstore(b, calldataload(add(proof.offset, 176)))
-//                mstore(add(b, 0x20), calldataload(add(proof.offset, 208)))
-//                mstore(add(b, 0x40), calldataload(add(proof.offset, 240)))
-//                mstore(add(b, 0x60), calldataload(add(proof.offset, 272)))
-//
-//                mstore(c, calldataload(add(proof.offset, 304)))
-//                mstore(add(c, 0x20), calldataload(add(proof.offset, 336)))
-//            }
-
-//            require(rootHashes[mac] == dataHash, "Root hash is not matched!");
-
             bool isValid = true;
             if (preimageVerifier != address(0)) {
                 IGroth16Verifier verifier = IGroth16Verifier(preimageVerifier);
@@ -103,7 +74,7 @@ contract ZKPVerifier is BaseVerifier, Ownable {
                 isValid = verifier.verifyProof(a, b, c, publicInputs);
             }
 
-            outputs[i] = PreimageProofOutput(dataHash, sealedKey, nonce, mac, a, b, c, preimageVerifier, isValid);
+            outputs[i] = PreimageProofOutput(dataHash, sealedKey, isValid);
         }
 
         return outputs;

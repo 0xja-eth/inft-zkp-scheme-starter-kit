@@ -11,7 +11,7 @@ import { IStorageService } from '../services/storage/StorageService';
 import { CryptoService } from '../services/crypto/ICryptoService';
 import { VerifierClient } from './VerifierClient';
 import * as sea from 'node:sea';
-import {MetaMaskCompatibleSealingService} from "../services/crypto/sealing/MetaMaskCompatibleSealingService";
+import {X25519XSalsa20Poly1305SealingService} from "../services/crypto/sealing/X25519XSalsa20Poly1305SealingService";
 import {Groth16Proof} from "snarkjs/index";
 
 export class AgentNFTClient {
@@ -279,7 +279,7 @@ export class AgentNFTClient {
   }
 
   private getPublicKey(wallet: ethers.Wallet) {
-    return MetaMaskCompatibleSealingService.getMetaMaskPublicKey(wallet.privateKey);
+    return X25519XSalsa20Poly1305SealingService.getMetaMaskPublicKey(wallet.privateKey);
   }
 
   /**

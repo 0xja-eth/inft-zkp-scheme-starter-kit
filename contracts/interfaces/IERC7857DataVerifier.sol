@@ -12,12 +12,6 @@ pragma solidity ^0.8.20;
 struct PreimageProofOutput {
     bytes32 dataHash;
     bytes sealedKey;
-    uint256 nonce;
-    uint256 mac;
-    uint256[2] a;
-    uint256[2][2] b;
-    uint256[2] c;
-    address verifier;
     bool isValid;
 }
 

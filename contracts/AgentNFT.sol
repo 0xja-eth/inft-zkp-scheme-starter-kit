@@ -143,7 +143,9 @@ contract AgentNFT is
             dataDescriptions.length == proofs.length,
             "Descriptions and proofs length mismatch"
         );
-        
+
+        require(proofs.length > 0, "Proofs length must be greater than 0");
+
         if (to == address(0)) {
             to = msg.sender;
         }

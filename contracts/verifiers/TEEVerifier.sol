@@ -30,7 +30,7 @@ contract TEEVerifier is BaseVerifier {
 
             bool isValid = true;
 
-//            outputs[i] = PreimageProofOutput(dataHash, sealedKey, isValid);
+            outputs[i] = PreimageProofOutput(dataHash, sealedKey, isValid);
         }
         return outputs;
     }
