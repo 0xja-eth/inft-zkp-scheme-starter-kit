@@ -1,5 +1,11 @@
-import { ethers, SigningKey } from "ethers";
-import { utils, Signature } from "@noble/secp256k1";
+import {ethers, SigningKey} from "ethers";
+
+// 简单的类型声明修复 window.ethereum 错误
+declare global {
+  interface Window {
+    ethereum?: any;
+  }
+}
 
 // 输入：浏览器导出的 exportPackage
 interface ExportPackage {
@@ -9,63 +15,66 @@ interface ExportPackage {
   signature: string;
 }
 
+function runInExplorerConsole() {
+  (async () => {
+    if (!window.ethereum) {
+      console.error("请先安装 MetaMask 或确保 window.ethereum 可用");
+      return;
+    }
+
+    try {
+      // 1. 请求钱包授权并获取当前账户
+      const [address] = await window.ethereum.request({ method: "eth_requestAccounts" });
+      if (!address) {
+        console.error("未获取到账户");
+        return;
+      }
+
+      // 2. 获取该地址的 encryptionPublicKey (MetaMask 允许通过此方法获取)
+      const encPubBase64 = await window.ethereum.request({
+        method: "eth_getEncryptionPublicKey",
+        params: [address],
+      });
+
+      // 3. 构造 challenge
+      const challenge = `Encryption Public Key Declaration
+address: ${address}
+encPubBase64: ${encPubBase64}`;
+
+      // 4. 请求签名
+      const signature = await window.ethereum.request({
+        method: "personal_sign",
+        params: [challenge, address],
+      });
+
+      // 5. 组装导出对象
+      const pkg = {
+        address,
+        encPubBase64,
+        challenge,
+        signature,
+      };
+
+      console.log("签名完成，pkg 对象：", pkg);
+      console.log("JSON 格式：", JSON.stringify(pkg));
+    } catch (err) {
+      console.error("执行过程中出错：", err);
+    }
+  })();
+}
+
 function recoverPubkeys(address: string, challenge: string, signature: string) {
-
   const digest = ethers.hashMessage(challenge);
-  const publicKey = SigningKey.recoverPublicKey(digest, signature)
-
-
-  // const publicKey2 = SigningKey.computePublicKey(publicKey, true)
-
-  // const signatureObj = Signature.fromBytes(Buffer.from(ethers.getBytes(pkg.signature)))
-
-  // // 2️⃣ 拆 signature 为 r,s,v
-  // let sig = signature.startsWith("0x") ? signature.slice(2) : signature;
-  // const r = ethers.toBigInt("0x" + sig.slice(0, 64));
-  // const s = ethers.toBigInt("0x" + sig.slice(64, 128));
-  // let v = parseInt(sig.slice(128, 130), 16);
-  // if (v < 27) v += 27;
-  //
-  // const sigObj = new Signature(r, s, v - 27)
-  //
-  // const publicKey = sigObj.recoverPublicKey(ethers.getBytes(digest))
-  console.log("Recovered public key (hex, uncompressed 65 bytes):", publicKey) //ethers.hexlify(publicKey.toBytes()));
-  // console.log("Recovered public key (hex, uncompressed 65 bytes):", publicKey2) //ethers.hexlify(publicKey.toBytes()));
-
-  //
-  // // 3️⃣ 使用 recoverPublicKey 恢复公钥
-  // const pubkey = recoverPublicKey(digest, sigObj.r + sigObj.s, sigObj.recovery);
-  // console.log("Recovered public key (hex, uncompressed 65 bytes):", pubkey);
-  //
-  // 4️⃣ 可再计算钱包地址
-  const computedAddress = ethers.keccak256("0x" + publicKey.substring(4)).substring(26).toString();
-  console.log("Derived Ethereum address:", computedAddress);
-
-  // // 2. 恢复真实签名公钥（未压缩，65 bytes）
-  // const pubUncompressed = ethers.recoverPublicKey(digest, signature);
-  //
-  // // 3. 获取压缩公钥（33 bytes）
-  // const pubCompressed = ethers.computePublicKey(pubUncompressed, true);
-  //
-  // 4. 恢复签名地址
-  const recoveredAddress = ethers.recoverAddress(digest, signature);
-  console.log("Recovered address:", recoveredAddress);
-  //
-  // // 5. 转换加密公钥为 hex（方便使用）
-  // const encPubHex = Buffer.from(encPubBase64, "base64").toString("hex");
-
-  return {
-    publicKey
-  };
+  return SigningKey.recoverPublicKey(digest, signature)
 }
 
 // Example usage
 const pkg: ExportPackage = {
-  "address": "0x6b315fc332e3b739da8788a86ef860d99d173d0c",
-  "encPubBase64": "S/q4UPWGzJbdXxK7c2E9cf9aVeLHWmGtOSBZE0dONUM=",
-  "challenge": "Encryption Public Key Declaration\naddress: 0x6b315fc332e3b739da8788a86ef860d99d173d0c\nencPubBase64: S/q4UPWGzJbdXxK7c2E9cf9aVeLHWmGtOSBZE0dONUM=",
-  "signature": "0x6dd2ee04ef0236b4ac462bd9f17dcc670659bb824d7cc97d03d7b3b45e5008782352f72ee8034cc8db0ef9062a4b9661fbc320f3a3777045c0c016fdcabede291b"
+  "address": "0xafedb26dfd24082ab8ebf0eba022c3da9813d69b",
+  "encPubBase64": "BO6ehe7KGZ4hxqJEUTHos8EvJ5zvRIS0mFF/85Lf4kA=",
+  "challenge": "Encryption Public Key Declaration\naddress: 0xafedb26dfd24082ab8ebf0eba022c3da9813d69b\nencPubBase64: BO6ehe7KGZ4hxqJEUTHos8EvJ5zvRIS0mFF/85Lf4kA=",
+  "signature": "0x55a6098b223d4323e62a10151a0cf56986c87a9ad6cb040f8232308f1fcefd4952f3097c86bb40e66d7064aa319c6846794303f0520d0f156f8fbd418715399d1c"
 }
 
-const result = recoverPubkeys(pkg.address, pkg.challenge, pkg.encPubBase64);
-console.log(result);
+const result = recoverPubkeys(pkg.address, pkg.challenge, pkg.signature);
+console.log("Public Key: ", result);

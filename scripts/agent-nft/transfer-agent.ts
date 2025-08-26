@@ -11,8 +11,8 @@ async function main() {
     // 验证参数
     if (!params.tokenId || !params.recipientAddress || !params.recipientEncPublicKey || !params.signature) {
       console.log('Usage: npm run agent:transfer <tokenId> <recipientAddress> <recipientEncPublicKey> <signature>');
-      console.log('Example: npm run agent:transfer 1 0x6b315fc332e3b739da8788a86ef860d99d173d0c S/q4UPWGzJbdXxK7c2E9cf9aVeLHWmGtOSBZE0dONUM= ' +
-          '0x6dd2ee04ef0236b4ac462bd9f17dcc670659bb824d7cc97d03d7b3b45e5008782352f72ee8034cc8db0ef9062a4b9661fbc320f3a3777045c0c016fdcabede291b');
+      console.log('Example: npm run agent:transfer 1 0xafedb26dfd24082ab8ebf0eba022c3da9813d69b BO6ehe7KGZ4hxqJEUTHos8EvJ5zvRIS0mFF/85Lf4kA= ' +
+          '0x55a6098b223d4323e62a10151a0cf56986c87a9ad6cb040f8232308f1fcefd4952f3097c86bb40e66d7064aa319c6846794303f0520d0f156f8fbd418715399d1c');
       console.log('Or set TOKEN_ID, RECIPIENT_ADDRESS, RECIPIENT_ENC_PUBLICKEY and RECIPIENT_SIGNATURE in .env file');
       process.exit(1);
     }
