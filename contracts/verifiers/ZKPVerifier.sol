@@ -46,7 +46,7 @@ contract ZKPVerifier is BaseVerifier, Ownable {
             require(proof.length >= 456, "Invalid proof length");
 
             bytes32 dataHash   = bytes32(proof[0:32]);
-            bytes calldata sealedKey = proof[32:136]; // 104 字节
+            bytes memory sealedKey = proof[32:136]; // 104 字节
             uint256 nonce      = uint256(bytes32(proof[136:168]));
             uint256 mac        = uint256(bytes32(proof[168:200]));
 
@@ -94,13 +94,13 @@ contract ZKPVerifier is BaseVerifier, Ownable {
             memory outputs = new TransferValidityProofOutput[](proofs.length);
 
        for (uint256 i = 0; i < proofs.length; i++) {
-            // 144 bytes for oldDataHashes, newDataHashes, pubKey, sealedKey, TODO: proofs payload
+            // 232 bytes for oldDataHashes, newDataHashes, pubKey, sealedKey, TODO: proofs payload
             require(proofs[i].length == 232, "Invalid proof length");
 
             bytes32 oldHash = bytes32(proofs[i][0:32]);
             bytes32 newHash = bytes32(proofs[i][32:64]);
             bytes memory pubKey = proofs[i][64:128];
-            bytes calldata sealedKey = bytes(proofs[i][128:232]);
+            bytes memory sealedKey = bytes(proofs[i][128:232]);
 
             // TODO: verify the proofs
             // 1. verify ZKP proof

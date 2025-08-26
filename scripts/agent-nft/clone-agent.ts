@@ -9,15 +9,14 @@ async function main() {
 
     // 验证参数
     if (!params.tokenId || !params.recipientAddress) {
-      console.log('Usage: npm run clone-example <tokenId> <recipientAddress>');
-      console.log('Example: npm run clone-example 1 0x742d35Cc6634C0532925a3b8D0C3C19D2A8aE');
-      console.log('Or set TOKEN_ID and RECIPIENT_ADDRESS in .env file');
+      console.log('Usage: npm run agent:clone <tokenId>');
+      console.log('Example: npm run agent:clone 1');
+      console.log('Or set TOKEN_ID in .env file');
       process.exit(1);
     }
 
     console.log(`Starting clone process...`);
     console.log(`Source Token ID: ${params.tokenId}`);
-    console.log(`Recipient: ${params.recipientAddress}`);
 
     // Check current owner
     console.log('\nChecking source token ownership...');

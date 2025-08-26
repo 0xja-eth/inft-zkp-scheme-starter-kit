@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@noble/secp256k1':
+        specifier: ^2.3.0
+        version: 2.3.0
       circomlibjs:
         specifier: ^0.1.7
         version: 0.1.7(bufferutil@4.0.9)(utf-8-validate@5.0.10)
@@ -385,6 +388,9 @@ packages:
 
   '@noble/secp256k1@1.7.1':
     resolution: {integrity: sha512-hOUk6AyBFmqVrv7k5WAw/LpszxVbj9gGN4JRkIX52fdFAj1UA61KXmZDvqVEm+pOyec3+fIeZB02LYa/pWOArw==}
+
+  '@noble/secp256k1@2.3.0':
+    resolution: {integrity: sha512-0TQed2gcBbIrh7Ccyw+y/uZQvbJwm7Ao4scBUxqpBCcsOlZG0O4KGfjtNAy/li4W8n1xt3dxrwJ0beZ2h2G6Kw==}
 
   '@nodelib/fs.scandir@2.1.5':
     resolution: {integrity: sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g==}
@@ -3241,6 +3247,8 @@ snapshots:
   '@noble/hashes@1.8.0': {}
 
   '@noble/secp256k1@1.7.1': {}
+
+  '@noble/secp256k1@2.3.0': {}
 
   '@nodelib/fs.scandir@2.1.5':
     dependencies:

@@ -2,6 +2,7 @@ import { ISealingService } from '../ICryptoService';
 import * as naclUtil from 'tweetnacl-util';
 import * as nacl from 'tweetnacl';
 import crypto from 'crypto';
+import {ethers} from "ethers";
 
 /**
  * MetaMask 兼容的密钥封装服务
@@ -85,8 +86,8 @@ export class X25519XSalsa20Poly1305SealingService implements ISealingService {
         Buffer.from(ciphertext)
       ]);
 
-      // 6. 返回 base64 编码的紧凑格式
-      const sealedKey = compactPayload.toString('base64');
+      // 6. 返回 hex 编码的紧凑格式
+      const sealedKey = ethers.hexlify(compactPayload) // .toString("hex") // .toString('base64');
 
       console.log(`✅ Key sealed successfully using compact format`);
       console.log(`Compact payload size: ${sealedKey.length} chars (vs ~${Math.ceil(sealedKey.length * 1.8)} chars in JSON format)`);
@@ -99,7 +100,7 @@ export class X25519XSalsa20Poly1305SealingService implements ISealingService {
 
   /**
    * 解封装密钥（用于服务端测试，实际使用中前端会调用 MetaMask 的 eth_decrypt）
-   * @param sealedKey 封装的密钥（base64 编码的紧凑格式）
+   * @param sealedKey 封装的密钥（Hex 编码的紧凑格式）
    * @param ethereumPrivateKey 以太坊私钥（会派生出 X25519 私钥）
    */
   async unsealKey(sealedKey: string, ethereumPrivateKey: string): Promise<Buffer> {
@@ -111,8 +112,9 @@ export class X25519XSalsa20Poly1305SealingService implements ISealingService {
       const recipientPrivateKey = naclUtil.decodeBase64(derivedKeyPair.privateKey);
 
       // 2. 解析紧凑格式 payload
-      const compactPayload = Buffer.from(sealedKey, 'base64');
-      
+      // const compactPayload = Buffer.from(sealedKey, 'hex');
+      const compactPayload = ethers.getBytes(sealedKey);
+
       // 验证最小长度: nonce(24) + ephemPublicKey(32) + ciphertext(至少16)
       if (compactPayload.length < 72) {
         throw new Error(`Invalid compact payload length: ${compactPayload.length}, minimum 72 bytes`);

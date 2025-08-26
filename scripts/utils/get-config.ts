@@ -225,16 +225,16 @@ export function getScriptConfig(
 export interface ScriptParams {
   tokenId?: number;
   recipientAddress?: string;
-  amount?: string;
-  description?: string;
+  recipientEncPublicKey?: string;
+  signature?: string
 }
 
 export function getScriptParams(args: string[] = process.argv.slice(2)): ScriptParams {
   return {
     tokenId: parseInt(args[0] || process.env.TOKEN_ID || '1'),
     recipientAddress: args[1] || process.env.RECIPIENT_ADDRESS || '',
-    amount: args[2] || process.env.AMOUNT || '',
-    description: args[3] || process.env.DESCRIPTION || '',
+    recipientEncPublicKey: args[2] || process.env.RECIPIENT_ENC_PUBLICKEY || '',
+    signature: args[3] || process.env.RECIPIENT_SIGNATURE || '',
   };
 }
 

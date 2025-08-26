@@ -124,7 +124,7 @@ export class MetadataManager {
   async reencryptForTransfer(
     rootHash: string,
     currentEncryptionKey: Buffer,
-    newOwnerPublicKey: string
+    newOwnerEncPublicKey: string
   ): Promise<EncryptedMetadataResult> {
     try {
       // Retrieve current metadata
@@ -140,7 +140,7 @@ export class MetadataManager {
       const storageResult = await this.storage.store(encryptedData);
 
       // Seal new key for new owner
-      const sealedKey = await this.crypto.sealKey(newEncryptionKey, newOwnerPublicKey);
+      const sealedKey = await this.crypto.sealKey(newEncryptionKey, newOwnerEncPublicKey);
 
       return {
         encryptedData,

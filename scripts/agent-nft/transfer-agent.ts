@@ -9,16 +9,18 @@ async function main() {
     const params = getScriptParams();
 
     // 验证参数
-    if (!params.tokenId || !params.recipientAddress) {
-      console.log('Usage: npm run transfer-example <tokenId> <recipientAddress>');
-      console.log('Example: npm run transfer-example 1 0x742d35Cc6634C0532925a3b8D0C3C19D2A8aE');
-      console.log('Or set TOKEN_ID and RECIPIENT_ADDRESS in .env file');
+    if (!params.tokenId || !params.recipientAddress || !params.recipientEncPublicKey || !params.signature) {
+      console.log('Usage: npm run agent:transfer <tokenId> <recipientAddress> <recipientEncPublicKey> <signature>');
+      console.log('Example: npm run agent:transfer 1 0x6b315fc332e3b739da8788a86ef860d99d173d0c S/q4UPWGzJbdXxK7c2E9cf9aVeLHWmGtOSBZE0dONUM= ' +
+          '0x6dd2ee04ef0236b4ac462bd9f17dcc670659bb824d7cc97d03d7b3b45e5008782352f72ee8034cc8db0ef9062a4b9661fbc320f3a3777045c0c016fdcabede291b');
+      console.log('Or set TOKEN_ID, RECIPIENT_ADDRESS, RECIPIENT_ENC_PUBLICKEY and RECIPIENT_SIGNATURE in .env file');
       process.exit(1);
     }
 
     console.log(`Starting transfer process...`);
     console.log(`Token ID: ${params.tokenId}`);
-    console.log(`Recipient: ${params.recipientAddress}`);
+    console.log(`Recipient: ${params.recipientAddress} (${params.recipientEncPublicKey})`);
+    console.log(`signature: ${params.signature}`);
 
     // Check current owner
     console.log('\nChecking current ownership...');
@@ -31,7 +33,7 @@ async function main() {
 
     // Transfer the token
     console.log('\nExecuting transfer...');
-    const txHash = await agentNFTClient.transfer(params.tokenId!, params.recipientAddress!);
+    const txHash = await agentNFTClient.transfer(params.tokenId!, params.recipientAddress!, params.recipientEncPublicKey!, params.signature!);
 
     console.log('\n✅ Transfer successful!');
     console.log(`Transaction Hash: ${txHash}`);

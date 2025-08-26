@@ -8,13 +8,13 @@ import { CryptoService } from '../services/crypto/ICryptoService';
 export interface TransferResult {
   proofs: string[];
   newRootHashes: string[];
-  sealedKeys: string[];
+  newSealedKeys: string[];
 }
 
 export interface CloneResult {
   proofs: string[];
   newRootHashes: string[];
-  sealedKeys: string[];
+  newSealedKeys: string[];
   newTokenData: any;
 }
 
@@ -40,40 +40,34 @@ export class TransferManager {
    * Generates the proofs needed for the transfer() function
    */
   async prepareTransfer(
-    tokenId: number,
     currentOwnerPrivateKey: string,
-    recipientAddress: string,
-    currentRootHashes: string[],
-    currentDataHashes: string[]
+    recipientPublicKey: string,
+    recipientEncPublicKey: string,
+    dataHashes: string[],
+    sealedKeys: string[]
   ): Promise<TransferResult> {
     try {
-      const recipientPublicKey = this.getPublicKeyFromAddress(recipientAddress);
+      // const recipientPublicKey = this.getPublicKeyFromAddress(recipientAddress);
       const proofs: string[] = [];
       const newRootHashes: string[] = [];
-      const sealedKeys: string[] = [];
+      const newSealedKeys: string[] = [];
 
       // Process each encrypted data item
-      for (let i = 0; i < currentRootHashes.length; i++) {
-        const currentRootHash = currentRootHashes[i];
-        const currentDataHash = currentDataHashes[i];
+      for (let i = 0; i < dataHashes.length; i++) {
+        const dataHash = dataHashes[i];
+        const sealedKey = sealedKeys[i];
 
         // Get encryption key from sealed key (simulate)
-        const currentEncryptionKey = await this.getCurrentEncryptionKey(
-          currentOwnerPrivateKey,
-          tokenId,
-          i
-        );
+        const encryptionKey = await this.crypto.unsealKey(sealedKey, currentOwnerPrivateKey)
 
         // Re-encrypt metadata for new recipient
         const reencryptResult = await this.metadataManager.reencryptForTransfer(
-          currentRootHash,
-          currentEncryptionKey,
-          recipientPublicKey
+          dataHash, encryptionKey, recipientEncPublicKey
         );
 
-        // Generate transfer proof
-        const proof = await this.generateTransferProof(
-          currentDataHash,
+        // Create transfer proof
+        const proof = this.createTransferProofBuffer(
+          dataHash,
           reencryptResult.rootHash,
           recipientPublicKey,
           reencryptResult.sealedKey
@@ -81,13 +75,13 @@ export class TransferManager {
 
         proofs.push(proof);
         newRootHashes.push(reencryptResult.rootHash);
-        sealedKeys.push(reencryptResult.sealedKey);
+        newSealedKeys.push(reencryptResult.sealedKey);
       }
 
       return {
         proofs,
         newRootHashes,
-        sealedKeys,
+        newSealedKeys,
       };
     } catch (error: any) {
       throw new Error(`Transfer preparation failed: ${error.message}`);
@@ -133,7 +127,7 @@ export class TransferManager {
         );
 
         // Generate transfer proof (same format as transfer)
-        const proof = await this.generateTransferProof(
+        const proof = this.createTransferProofBuffer(
           currentDataHash,
           cloneResult.rootHash,
           recipientPublicKey,
@@ -148,7 +142,7 @@ export class TransferManager {
       return {
         proofs,
         newRootHashes,
-        sealedKeys,
+        newSealedKeys: sealedKeys,
         newTokenData: {
           rootHashes: newRootHashes,
           sealedKeys,
@@ -163,35 +157,31 @@ export class TransferManager {
    * Generate transfer validity proof
    * Format: oldDataHash + newDataHash + pubKey + sealedKey (144 bytes total)
    */
-  private async generateTransferProof(
+  private createTransferProofBuffer(
     oldDataHash: string,
     newDataHash: string,
     recipientPublicKey: string,
     sealedKey: string
-  ): Promise<string> {
-    try {
-      // Convert hashes to 32-byte buffers
-      const oldHashBuffer = Buffer.from(oldDataHash.replace('0x', ''), 'hex');
-      const newHashBuffer = Buffer.from(newDataHash.replace('0x', ''), 'hex');
+  ): string {
+    // Convert hashes to 32-byte buffers
+    const oldHashBytes = ethers.getBytes(oldDataHash); // Buffer.from(oldDataHash.replace('0x', ''), 'hex');
+    const newHashBytes = ethers.getBytes(newDataHash); // Buffer.from(newDataHash.replace('0x', ''), 'hex');
 
-      // Convert public key to 64-byte buffer
-      const pubKeyBuffer = Buffer.from(recipientPublicKey.replace('0x', ''), 'hex');
+    // Convert public key to 32-byte buffer
+    const pubKeyBytes = ethers.getBytes(recipientPublicKey).slice(1); // Buffer.from(recipientPublicKey, 'base64');
 
-      // Convert sealed key to 16-byte buffer
-      const sealedKeyBuffer = Buffer.from(sealedKey.slice(0, 32), 'hex');
+    // Convert sealed key to 104-byte buffer
+    const sealedKeyBytes = ethers.getBytes(sealedKey);
 
-      // Combine all parts (144 bytes total)
-      const proof = Buffer.concat([
-        oldHashBuffer, // 32 bytes
-        newHashBuffer, // 32 bytes
-        pubKeyBuffer, // 64 bytes
-        sealedKeyBuffer, // 16 bytes
-      ]);
+    // Combine all parts (200 bytes total)
+    const buffer = Buffer.concat([
+      oldHashBytes, // 32 bytes
+      newHashBytes, // 32 bytes
+      pubKeyBytes, // 64 bytes
+      sealedKeyBytes, // 104 bytes
+    ]);
 
-      return '0x' + proof.toString('hex');
-    } catch (error: any) {
-      throw new Error(`Proof generation failed: ${error.message}`);
-    }
+    return ethers.hexlify(buffer);
   }
 
   /**
