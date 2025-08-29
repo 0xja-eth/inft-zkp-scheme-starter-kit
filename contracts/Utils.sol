@@ -49,4 +49,43 @@ library Utils {
         bytes32 hash = keccak256(pubKey);
         return address(uint160(uint256(hash)));
     }
+
+    function verify(
+        address signer,
+        string memory message,
+        bytes memory signature
+    ) public pure returns (bool) {
+        bytes32 messageHash = prefixedHash(message);
+
+        require(signature.length == 65, "invalid signature length");
+        bytes32 r;
+        bytes32 s;
+        uint8 v;
+        assembly {
+            r := mload(add(signature, 32))
+            s := mload(add(signature, 64))
+            v := byte(0, mload(add(signature, 96)))
+        }
+
+        address recovered = ecrecover(messageHash, v, r, s);
+
+        return (recovered == signer);
+    }
+
+    function prefixedHash(string memory message) public pure returns (bytes32) {
+        return keccak256(
+            abi.encodePacked("\x19Ethereum Signed Message:\n", uint2str(bytes(message).length), message)
+        );
+    }
+
+    function uint2str(uint _i) internal pure returns (string memory _uintAsString) {
+        if (_i == 0) return "0";
+        uint j = _i;
+        uint len;
+        while (j != 0) { len++; j /= 10; }
+        bytes memory bstr = new bytes(len);
+        uint k = len;
+        while (_i != 0) { bstr[--k] = bytes1(uint8(48 + _i % 10)); _i /= 10; }
+        return string(bstr);
+    }
 }

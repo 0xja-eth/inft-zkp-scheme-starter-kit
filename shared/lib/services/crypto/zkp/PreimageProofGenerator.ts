@@ -3,6 +3,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { StreamCipherEncryptionService } from '../encryption/StreamCipherEncryptionService';
 
+export const ZKPBuildDir = process.env.ZKP_BUILD_DIR || './build';
+
 /**
  * File encryption ZK proof generator using StreamEncVerify circuit
  * Generates proofs for file encryption verification
@@ -11,7 +13,7 @@ export class PreimageProofGenerator {
   private readonly circuitWasmPath: string;
   private readonly circuitZkeyPath: string;
 
-  constructor(buildDir: string = './build') {
+  constructor(buildDir: string = ZKPBuildDir) {
     this.circuitWasmPath = path.join(buildDir, 'preimage_verifier_js', 'preimage_verifier.wasm');
     this.circuitZkeyPath = path.join(buildDir, 'preimage_verifier_final.zkey');
   }

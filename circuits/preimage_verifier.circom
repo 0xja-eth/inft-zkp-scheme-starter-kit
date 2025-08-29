@@ -4,14 +4,17 @@ include "circomlib/circuits/poseidon.circom";
 include "circomlib/circuits/bitify.circom";
 
 /*
-  固定 128 块 (每块 16 bytes -> 1 field)
-  公有输入:
-    nonce      : Field
-    mac        : Field
-    cipher[128]: Field
-  私有输入:
-    key        : Field
-    msg[128]   : Field
+  Preimage verification circuit: proves knowledge of key and message
+  that produce specific nonce, MAC, and ciphertext.
+  
+  Fixed 128 blocks (each block 16 bytes -> 1 field)
+  Public inputs:
+    nonce         : Field - encryption nonce
+    mac           : Field - message authentication code
+    cipher[128]   : Field - ciphertext blocks
+  Private inputs:
+    key           : Field - encryption key
+    msg[128]      : Field - plaintext message blocks
 */
 template PoseidonChain(N) {
     signal input in[N];
@@ -42,11 +45,11 @@ template PreimageVerifier(N) {
     // public
     signal input nonce;
     signal input mac;
-    signal input cipher[N];
 
     // private
     signal input key;
     signal input msg[N];
+    signal input cipher[N];
 
     // state = Poseidon(key, nonce)
     component h_state = Poseidon(2);
@@ -75,14 +78,14 @@ template PreimageVerifier(N) {
         hks[i].inputs[0] <== state;
         hks[i].inputs[1] <== i;
 
-        // 将 Poseidon 输出拆成 254 位
+        // Decompose Poseidon output to 254 bits
         toBits254[i] = Num2Bits(254);
         toBits254[i].in <== hks[i].out;
 
-        // 只保留低 128 位
+        // Keep only low 128 bits
         ksBits[i] = Bits2Num(128);
         for (var b = 0; b < 128; b++) {
-            ksBits[i].in[b] <== toBits254[i].out[b]; // 低 128 位
+            ksBits[i].in[b] <== toBits254[i].out[b]; // low 128 bits
         }
         ks[i] <== ksBits[i].out;
 
