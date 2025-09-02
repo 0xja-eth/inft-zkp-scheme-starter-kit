@@ -110,6 +110,9 @@ contract AgentNFT is
 
         PreimageProofOutput[] memory proofOupt = $.verifier.verifyPreimage(proofs);
         bytes32[] memory newDataHashes = new bytes32[](proofOupt.length);
+        bytes[] memory newSealedKeys = new bytes[](proofOupt.length);
+
+        bool isSealedKeyChanged = false;
 
         for (uint i = 0; i < proofOupt.length; i++) {
             require(
@@ -123,13 +126,23 @@ contract AgentNFT is
                     )
                 )
             );
+            if (!isSealedKeyChanged && keccak256(proofOupt[i].sealedKey) != keccak256(token.sealedKeys[i])) // sealed key changed
+                isSealedKeyChanged = true;
+
             newDataHashes[i] = proofOupt[i].dataHash;
+            newSealedKeys[i] = proofOupt[i].sealedKey;
         }
 
         bytes32[] memory oldDataHashes = token.dataHashes;
         token.dataHashes = newDataHashes;
 
+        if (isSealedKeyChanged)
+            token.sealedKeys = newSealedKeys;
+
         emit Updated(tokenId, oldDataHashes, newDataHashes);
+
+        if (isSealedKeyChanged)
+            emit PublishedSealedKey(token.owner, tokenId, newSealedKeys);
     }
 
     function mint(

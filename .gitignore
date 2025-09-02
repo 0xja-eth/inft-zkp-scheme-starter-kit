@@ -105,3 +105,6 @@ secrets/
 CLAUDE.md
 
 /lib
+
+/apps
+!/apps/agent-nft-backend

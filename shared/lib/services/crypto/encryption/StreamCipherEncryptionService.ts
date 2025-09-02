@@ -113,30 +113,6 @@ export class StreamCipherEncryptionService implements IEncryptionService {
   async decrypt(encryptedData: Buffer, key: Buffer): Promise<string> {
     const { nonce, cipher, mac: expectedMac } = await StreamCipherEncryptionService.parseEncryptedData(encryptedData);
 
-    // await initPoseidon()
-    //
-    // if (encryptedData.length !== 4 + 32 + StreamCipherEncryptionService.N * StreamCipherEncryptionService.BLOCK_BYTES) {
-    //   throw new Error("Invalid encrypted data size");
-    // }
-    //
-    // let offset = 0;
-    //
-    // // Extract nonce
-    // const nonceBuf = encryptedData.subarray(offset, offset + 4);
-    // const nonce = buffer2Bigint(nonceBuf);
-    //
-    // offset += 4;
-    //
-    // // Extract MAC
-    // const macBuf = encryptedData.subarray(offset, offset + 32);
-    // const expectedMac = buffer2Bigint(macBuf);
-    //
-    // offset += 32;
-    //
-    // // Extract cipher
-    // const cipherBuf = encryptedData.subarray(offset);
-    // const cipher = this.bufferToBigints(cipherBuf, StreamCipherEncryptionService.BLOCK_BYTES);
-
     // Convert key to single field element
     const keyField = BigInt('0x' + key.toString('hex'));
 

@@ -67,6 +67,7 @@
     "typescript": "^5.9.2"
   },
   "dependencies": {
+    "@metamask/eth-sig-util": "^8.2.0",
     "@noble/secp256k1": "^2.3.0",
     "circomlibjs": "^0.1.7",
     "snarkjs": "^0.7.5",
