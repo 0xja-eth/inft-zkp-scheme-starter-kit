@@ -1,5 +1,11 @@
 import crypto from 'crypto';
-import { poseidonAsync, initPoseidon, buffer2Bigint, bigint2Buffer } from '../Poseidon';
+import { poseidonAsync, initPoseidon } from '../../../utils/Poseidon';
+import {
+  buffer2Bigint,
+  bigint2Buffer,
+  bufferToBigints,
+  bigintsToBuffer,
+} from '../../../utils/BufferConverter';
 import { IEncryptionService } from '../ICryptoService';
 
 /**
@@ -14,28 +20,6 @@ export class StreamCipherEncryptionService implements IEncryptionService {
     initPoseidon();
   }
 
-  private static bigintsToBuffer(bigints: bigint[], blockBytes: number): Buffer {
-    const buf = Buffer.alloc(bigints.length * blockBytes);
-    for (let i = 0; i < bigints.length; i++) {
-      const val = bigints[i];
-
-      const valBuf = bigint2Buffer(val, blockBytes);
-      valBuf.copy(buf, i * blockBytes);
-    }
-    return buf;
-  }
-
-  private static bufferToBigints(buf: Buffer, blockBytes: number): bigint[] {
-    const res: bigint[] = [];
-    for (let i = 0; i < buf.length; i += blockBytes) {
-      const valBuf = buf.subarray(i, i + blockBytes);
-      const val = buffer2Bigint(valBuf);
-
-      res.push(val);
-    }
-    return res;
-  }
-
   generateKey(): Buffer {
     return crypto.randomBytes(32);
   }
@@ -45,18 +29,23 @@ export class StreamCipherEncryptionService implements IEncryptionService {
 
     const jsonBuf = Buffer.from(data, 'utf8');
 
-    if (jsonBuf.length > StreamCipherEncryptionService.N * StreamCipherEncryptionService.BLOCK_BYTES) {
+    if (
+      jsonBuf.length >
+      StreamCipherEncryptionService.N * StreamCipherEncryptionService.BLOCK_BYTES
+    ) {
       throw new Error(
         `Data too large for ${StreamCipherEncryptionService.N} blocks (max ${StreamCipherEncryptionService.N * StreamCipherEncryptionService.BLOCK_BYTES} bytes)`
       );
     }
 
     // Pad data to fixed size
-    const padded = Buffer.alloc(StreamCipherEncryptionService.N * StreamCipherEncryptionService.BLOCK_BYTES);
+    const padded = Buffer.alloc(
+      StreamCipherEncryptionService.N * StreamCipherEncryptionService.BLOCK_BYTES
+    );
     jsonBuf.copy(padded);
 
     // Convert to message blocks
-    const msgBlocks = StreamCipherEncryptionService.bufferToBigints(padded, StreamCipherEncryptionService.BLOCK_BYTES);
+    const msgBlocks = bufferToBigints(padded, StreamCipherEncryptionService.BLOCK_BYTES);
 
     // Generate nonce (4 bytes)
     const nonceBuf = crypto.randomBytes(4);
@@ -92,7 +81,9 @@ export class StreamCipherEncryptionService implements IEncryptionService {
     const mac = await poseidonAsync([nonce, digest]);
 
     // Pack result: nonce(4) + mac(32) + cipher(N*16)
-    const result = Buffer.alloc(4 + 32 + StreamCipherEncryptionService.N * StreamCipherEncryptionService.BLOCK_BYTES);
+    const result = Buffer.alloc(
+      4 + 32 + StreamCipherEncryptionService.N * StreamCipherEncryptionService.BLOCK_BYTES
+    );
     let offset = 0;
 
     // Write nonce
@@ -104,14 +95,18 @@ export class StreamCipherEncryptionService implements IEncryptionService {
     offset += 32;
 
     // Write cipher
-    const cipherBuf = StreamCipherEncryptionService.bigintsToBuffer(cipher, StreamCipherEncryptionService.BLOCK_BYTES);
+    const cipherBuf = bigintsToBuffer(cipher, StreamCipherEncryptionService.BLOCK_BYTES);
     cipherBuf.copy(result, offset);
 
     return result;
   }
 
   async decrypt(encryptedData: Buffer, key: Buffer): Promise<string> {
-    const { nonce, cipher, mac: expectedMac } = await StreamCipherEncryptionService.parseEncryptedData(encryptedData);
+    const {
+      nonce,
+      cipher,
+      mac: expectedMac,
+    } = await StreamCipherEncryptionService.parseEncryptedData(encryptedData);
 
     // Convert key to single field element
     const keyField = BigInt('0x' + key.toString('hex'));
@@ -147,7 +142,7 @@ export class StreamCipherEncryptionService implements IEncryptionService {
     }
 
     // Convert back to buffer and extract original data
-    const msgBuf = StreamCipherEncryptionService.bigintsToBuffer(msgBlocks, StreamCipherEncryptionService.BLOCK_BYTES);
+    const msgBuf = bigintsToBuffer(msgBlocks, StreamCipherEncryptionService.BLOCK_BYTES);
 
     // Find actual data length (remove padding)
     let actualLength = msgBuf.length;
@@ -165,7 +160,10 @@ export class StreamCipherEncryptionService implements IEncryptionService {
   }> {
     await initPoseidon();
 
-    if (encryptedData.length !== 4 + 32 + StreamCipherEncryptionService.N * StreamCipherEncryptionService.BLOCK_BYTES) {
+    if (
+      encryptedData.length !==
+      4 + 32 + StreamCipherEncryptionService.N * StreamCipherEncryptionService.BLOCK_BYTES
+    ) {
       throw new Error('Invalid encrypted data size');
     }
 
@@ -185,7 +183,7 @@ export class StreamCipherEncryptionService implements IEncryptionService {
 
     // Extract cipher
     const cipherBuf = encryptedData.subarray(offset);
-    const cipher = this.bufferToBigints(cipherBuf, StreamCipherEncryptionService.BLOCK_BYTES);
+    const cipher = bufferToBigints(cipherBuf, StreamCipherEncryptionService.BLOCK_BYTES);
 
     return { nonce, mac, cipher };
   }
@@ -207,14 +205,19 @@ export class StreamCipherEncryptionService implements IEncryptionService {
   }> {
     const jsonBuf = Buffer.from(data, 'utf8');
 
-    if (jsonBuf.length > StreamCipherEncryptionService.N * StreamCipherEncryptionService.BLOCK_BYTES) {
+    if (
+      jsonBuf.length >
+      StreamCipherEncryptionService.N * StreamCipherEncryptionService.BLOCK_BYTES
+    ) {
       throw new Error(`Data too large for ${StreamCipherEncryptionService.N} blocks`);
     }
 
     // Pad data
-    const padded = Buffer.alloc(StreamCipherEncryptionService.N * StreamCipherEncryptionService.BLOCK_BYTES);
+    const padded = Buffer.alloc(
+      StreamCipherEncryptionService.N * StreamCipherEncryptionService.BLOCK_BYTES
+    );
     jsonBuf.copy(padded);
-    const msgBlocks = this.bufferToBigints(padded, StreamCipherEncryptionService.BLOCK_BYTES);
+    const msgBlocks = bufferToBigints(padded, StreamCipherEncryptionService.BLOCK_BYTES);
 
     const keyField = BigInt('0x' + key.toString('hex'));
 

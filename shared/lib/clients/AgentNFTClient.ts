@@ -1,16 +1,12 @@
 import {ethers, SigningKey, Wallet} from 'ethers';
-import {poseidonAsync, initPoseidon, bigint2Buffer} from '../services/crypto/Poseidon';
 import { MetadataManager } from '../managers/MetadataManager';
 import { TransferManager } from '../managers/TransferManager';
 import { EncryptedMetadataResult, Metadata } from '../types';
-import { ZGStorageService } from '../services/storage/ZGStorageService';
-import { LocalStorageService } from '../services/storage/LocalStorageService';
 import { ZKCryptoService } from '../services/crypto/CryptoServices';
 import {PreimageProofGenerator} from '../services/crypto/zkp/PreimageProofGenerator';
 import { IStorageService } from '../services/storage/StorageService';
 import { CryptoService } from '../services/crypto/ICryptoService';
 import { VerifierClient } from './VerifierClient';
-import * as sea from 'node:sea';
 import {X25519XSalsa20Poly1305SealingService} from "../services/crypto/sealing/X25519XSalsa20Poly1305SealingService";
 import {Groth16Proof} from "snarkjs/index";
 
