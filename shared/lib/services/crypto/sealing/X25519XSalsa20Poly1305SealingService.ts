@@ -1,230 +1,177 @@
 import { ISealingService } from '../ICryptoService';
-import * as naclUtil from 'tweetnacl-util';
-import * as nacl from 'tweetnacl';
-import crypto from 'crypto';
-import {ethers} from "ethers";
+import { encrypt, decrypt, getEncryptionPublicKey } from '@metamask/eth-sig-util';
+import { ethers } from 'ethers';
 
 /**
- * MetaMask 兼容的密钥封装服务
+ * MetaMask-compatible key sealing service
  * 
- * 这个服务完全按照 MetaMask 的 eth_getEncryptionPublicKey/eth_decrypt 标准实现
+ * Uses @metamask/eth-sig-util library for fully compatible encryption/decryption
+ * Outputs in compact format to reduce storage costs
  * 
- * 使用方式：
- * 1. 前端调用 MetaMask 的 eth_getEncryptionPublicKey 获取 base64 公钥
- * 2. 使用该公钥进行密钥封装
- * 3. 前端可以用 eth_decrypt 解封装
+ * Usage:
+ * 1. Frontend calls MetaMask's eth_getEncryptionPublicKey to get public key
+ * 2. Use that public key for key sealing
+ * 3. Frontend can use eth_decrypt to unseal
  */
 export class X25519XSalsa20Poly1305SealingService implements ISealingService {
-  
-  /**
-   * 从以太坊私钥派生 X25519 密钥对（模拟 MetaMask 的行为）
-   * @param ethereumPrivateKey 以太坊私钥
-   * @returns X25519 密钥对
-   */
-  static deriveX25519KeyPairFromEthereumKey(ethereumPrivateKey: string): {
-    publicKey: string; // base64
-    privateKey: string; // base64
-  } {
-    const cleanPrivateKey = ethereumPrivateKey.startsWith('0x') 
-      ? ethereumPrivateKey.slice(2) 
-      : ethereumPrivateKey;
-    
-    // 使用与 MetaMask 类似的派生方法
-    const ethPrivateKeyBuffer = Buffer.from(cleanPrivateKey, 'hex');
-    
-    // 使用 HKDF 派生 X25519 私钥（模拟 MetaMask 的内部逻辑）
-    const x25519PrivateKey = crypto.hkdfSync(
-      'sha256',
-      ethPrivateKeyBuffer,
-      Buffer.from('metamask-encryption-salt', 'utf8'),
-      Buffer.from('metamask-x25519-derivation', 'utf8'),
-      32
-    );
-    
-    const keyPair = nacl.box.keyPair.fromSecretKey(new Uint8Array(x25519PrivateKey));
-    
-    return {
-      publicKey: naclUtil.encodeBase64(keyPair.publicKey),
-      privateKey: naclUtil.encodeBase64(keyPair.secretKey),
-    };
-  }
 
   /**
-   * 封装密钥，完全兼容 MetaMask 格式
-   * @param encryptionKey 要封装的密钥
-   * @param metaMaskPublicKey MetaMask 的 base64 公钥 (从 eth_getEncryptionPublicKey 获取)
+   * Seal key using @metamask/eth-sig-util and output in compact format
+   * @param encryptionKey The key to seal
+   * @param metaMaskPublicKey MetaMask public key (obtained from eth_getEncryptionPublicKey)
    */
   async sealKey(encryptionKey: Buffer, metaMaskPublicKey: string): Promise<string> {
     try {
-      console.log('🔐 Sealing key using MetaMask-compatible X25519-XSalsa20-Poly1305...');
+      console.log('🔐 Sealing key using @metamask/eth-sig-util...');
 
-      // 1. 解码 MetaMask 公钥（应该是 base64 格式）
-      const recipientPublicKey = naclUtil.decodeBase64(metaMaskPublicKey);
-      if (recipientPublicKey.length !== 32) {
-        throw new Error(`Invalid MetaMask public key length: ${recipientPublicKey.length}. Expected 32 bytes.`);
-      }
+      // 1. Encrypt using @metamask/eth-sig-util
+      const encryptedData = encrypt({
+        publicKey: metaMaskPublicKey,
+        data: encryptionKey.toString('base64'),
+        version: 'x25519-xsalsa20-poly1305'
+      });
 
-      // 2. 生成临时密钥对
-      const ephemeralKeyPair = nacl.box.keyPair();
-
-      // 3. 生成随机 nonce
-      const nonce = nacl.randomBytes(nacl.box.nonceLength); // 24 bytes
-
-      // 4. 使用 NaCl box 加密
-      const ciphertext = nacl.box(
-        new Uint8Array(encryptionKey),
-        nonce,
-        recipientPublicKey,
-        ephemeralKeyPair.secretKey
-      );
-
-      // 5. 构建紧凑格式 payload (移除固定字段以减少合约存储成本)
-      // 格式: nonce(24字节) + ephemPublicKey(32字节) + ciphertext(变长)
-      const compactPayload = Buffer.concat([
-        Buffer.from(nonce),
-        Buffer.from(ephemeralKeyPair.publicKey),
-        Buffer.from(ciphertext)
-      ]);
-
-      // 6. 返回 hex 编码的紧凑格式
-      const sealedKey = ethers.hexlify(compactPayload) // .toString("hex") // .toString('base64');
+      // 2. Convert to compact format to reduce storage costs
+      const compactPayload = this.convertToCompactFormat(encryptedData);
 
       console.log(`✅ Key sealed successfully using compact format`);
-      console.log(`Compact payload size: ${sealedKey.length} chars (vs ~${Math.ceil(sealedKey.length * 1.8)} chars in JSON format)`);
+      console.log(`Compact payload size: ${compactPayload.length} chars`);
 
-      return sealedKey;
+      return compactPayload;
     } catch (error: any) {
       throw new Error(`MetaMask key sealing failed: ${error.message}`);
     }
   }
 
   /**
-   * 解封装密钥（用于服务端测试，实际使用中前端会调用 MetaMask 的 eth_decrypt）
-   * @param sealedKey 封装的密钥（Hex 编码的紧凑格式）
-   * @param ethereumPrivateKey 以太坊私钥（会派生出 X25519 私钥）
+   * Unseal key (for server-side testing, in actual use frontend will call MetaMask's eth_decrypt)
+   * @param sealedKey Sealed key (compact format)
+   * @param ethereumPrivateKey Ethereum private key
    */
   async unsealKey(sealedKey: string, ethereumPrivateKey: string): Promise<Buffer> {
     try {
-      console.log('🔓 Unsealing key using derived X25519 key...');
+      console.log('🔓 Unsealing key using @metamask/eth-sig-util...');
 
-      // 1. 从以太坊私钥派生 X25519 私钥
-      const derivedKeyPair = X25519XSalsa20Poly1305SealingService.deriveX25519KeyPairFromEthereumKey(ethereumPrivateKey);
-      const recipientPrivateKey = naclUtil.decodeBase64(derivedKeyPair.privateKey);
+      // 1. Convert compact format to MetaMask standard format
+      const metaMaskFormat = this.convertFromCompactFormat(sealedKey);
 
-      // 2. 解析紧凑格式 payload
-      // const compactPayload = Buffer.from(sealedKey, 'hex');
-      const compactPayload = ethers.getBytes(sealedKey);
+      // 2. Decrypt using @metamask/eth-sig-util
+      const decryptedData = decrypt({
+        encryptedData: metaMaskFormat,
+        privateKey: ethereumPrivateKey.startsWith('0x') ? ethereumPrivateKey.slice(2) : ethereumPrivateKey
+      });
 
-      // 验证最小长度: nonce(24) + ephemPublicKey(32) + ciphertext(至少16)
-      if (compactPayload.length < 72) {
-        throw new Error(`Invalid compact payload length: ${compactPayload.length}, minimum 72 bytes`);
-      }
-
-      // 3. 提取组件 (固定长度)
-      const nonce = new Uint8Array(compactPayload.subarray(0, 24));
-      const ephemeralPublicKey = new Uint8Array(compactPayload.subarray(24, 56)); 
-      const ciphertext = new Uint8Array(compactPayload.subarray(56));
-
-      // 4. 验证组件长度（已通过固定偏移量保证）
-      if (nonce.length !== nacl.box.nonceLength) {
-        throw new Error(`Invalid nonce length: ${nonce.length}`);
-      }
-      if (ephemeralPublicKey.length !== 32) {
-        throw new Error(`Invalid ephemeral public key length: ${ephemeralPublicKey.length}`);
-      }
-
-      // 5. 解密
-      const decryptedKey = nacl.box.open(
-        ciphertext,
-        nonce,
-        ephemeralPublicKey,
-        recipientPrivateKey
-      );
-
-      if (!decryptedKey) {
-        throw new Error('Failed to decrypt: invalid ciphertext or keys');
-      }
-
-      console.log(`✅ Key unsealed successfully (${decryptedKey.length} bytes)`);
-      return Buffer.from(decryptedKey);
+      console.log(`✅ Key unsealed successfully`);
+      return Buffer.from(decryptedData, 'base64');
     } catch (error: any) {
-      throw new Error(`Compact key unsealing failed: ${error.message}`);
+      throw new Error(`Key unsealing failed: ${error.message}`);
     }
   }
 
   /**
-   * 为了兼容 MetaMask，提供从紧凑格式转换为 MetaMask JSON 格式的方法
-   * @param compactSealedKey 紧凑格式的密钥
-   * @returns MetaMask 兼容的 JSON 格式
+   * Convert @metamask/eth-sig-util encryption result to compact format
+   * @param encryptedData @metamask/eth-sig-util encryption result
+   * @returns Compact format hexadecimal string
+   */
+  private convertToCompactFormat(encryptedData: any): string {
+    try {
+      // Decode each component
+      const nonce = Buffer.from(encryptedData.nonce, 'base64');
+      const ephemPublicKey = Buffer.from(encryptedData.ephemPublicKey, 'base64');
+      const ciphertext = Buffer.from(encryptedData.ciphertext, 'base64');
+
+      // Build compact format: nonce(24 bytes) + ephemPublicKey(32 bytes) + ciphertext(variable length)
+      const compactPayload = Buffer.concat([
+        nonce,
+        ephemPublicKey,
+        ciphertext
+      ]);
+
+      // Return hexadecimal format
+      return ethers.hexlify(compactPayload);
+    } catch (error: any) {
+      throw new Error(`Compact format conversion failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Convert compact format to @metamask/eth-sig-util compatible format
+   * @param compactSealedKey Compact format key (hexadecimal)
+   * @returns @metamask/eth-sig-util compatible format
+   */
+  private convertFromCompactFormat(compactSealedKey: string): any {
+    try {
+      // Parse compact format
+      const compactPayload = ethers.getBytes(compactSealedKey);
+      
+      // Validate minimum length: nonce(24) + ephemPublicKey(32) + ciphertext(at least 16)
+      if (compactPayload.length < 72) {
+        throw new Error(`Invalid compact payload length: ${compactPayload.length}, minimum 72 bytes`);
+      }
+
+      // Extract components
+      const nonce = compactPayload.subarray(0, 24);
+      const ephemPublicKey = compactPayload.subarray(24, 56);
+      const ciphertext = compactPayload.subarray(56);
+
+      // Build @metamask/eth-sig-util compatible format
+      return {
+        version: 'x25519-xsalsa20-poly1305',
+        nonce: Buffer.from(nonce).toString('base64'),
+        ephemPublicKey: Buffer.from(ephemPublicKey).toString('base64'),
+        ciphertext: Buffer.from(ciphertext).toString('base64')
+      };
+    } catch (error: any) {
+      throw new Error(`Compact format parsing failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get MetaMask-compatible public key (derived from Ethereum private key)
+   * Note: In actual use, should be obtained from frontend's eth_getEncryptionPublicKey
+   */
+  static getMetaMaskPublicKey(ethereumPrivateKey: string): string {
+    const cleanPrivateKey = ethereumPrivateKey.startsWith('0x') 
+      ? ethereumPrivateKey.slice(2) 
+      : ethereumPrivateKey;
+    
+    return getEncryptionPublicKey(cleanPrivateKey);
+  }
+
+  /**
+   * Static method: Convert compact format to MetaMask JSON format (for frontend compatibility)
+   * @param compactSealedKey Compact format key
+   * @returns MetaMask-compatible base64-encoded JSON format
    */
   static convertCompactToMetaMaskFormat(compactSealedKey: string): string {
     try {
-      // 解析紧凑格式
-      const compactPayload = Buffer.from(compactSealedKey, 'base64');
-      
-      if (compactPayload.length < 72) {
-        throw new Error(`Invalid compact payload length: ${compactPayload.length}`);
-      }
-
-      // 提取组件
-      const nonce = compactPayload.subarray(0, 24);
-      const ephemeralPublicKey = compactPayload.subarray(24, 56);
-      const ciphertext = compactPayload.subarray(56);
-
-      // 构建 MetaMask 标准格式
-      const metaMaskPayload = {
-        version: 'x25519-xsalsa20-poly1305',
-        nonce: naclUtil.encodeBase64(nonce),
-        ephemPublicKey: naclUtil.encodeBase64(ephemeralPublicKey),
-        ciphertext: naclUtil.encodeBase64(ciphertext),
-      };
-
-      return Buffer.from(JSON.stringify(metaMaskPayload)).toString('base64');
+      const service = new X25519XSalsa20Poly1305SealingService();
+      const metaMaskFormat = service.convertFromCompactFormat(compactSealedKey);
+      return Buffer.from(JSON.stringify(metaMaskFormat)).toString('base64');
     } catch (error: any) {
       throw new Error(`Compact to MetaMask conversion failed: ${error.message}`);
     }
   }
 
   /**
-   * 从 MetaMask JSON 格式转换为紧凑格式
-   * @param metaMaskSealedKey MetaMask 格式的密钥
-   * @returns 紧凑格式的密钥
+   * Static method: Convert MetaMask JSON format to compact format
+   * @param metaMaskSealedKey MetaMask format key (base64-encoded JSON)
+   * @returns Compact format hexadecimal string
    */
   static convertMetaMaskToCompactFormat(metaMaskSealedKey: string): string {
     try {
-      // 解析 MetaMask 格式
       const payloadJson = Buffer.from(metaMaskSealedKey, 'base64').toString('utf8');
       const payload = JSON.parse(payloadJson);
 
-      // 验证版本
+      // Validate version
       if (payload.version !== 'x25519-xsalsa20-poly1305') {
         throw new Error(`Unsupported version: ${payload.version}`);
       }
 
-      // 解码组件
-      const nonce = naclUtil.decodeBase64(payload.nonce);
-      const ephemeralPublicKey = naclUtil.decodeBase64(payload.ephemPublicKey);
-      const ciphertext = naclUtil.decodeBase64(payload.ciphertext);
-
-      // 构建紧凑格式
-      const compactPayload = Buffer.concat([
-        Buffer.from(nonce),
-        Buffer.from(ephemeralPublicKey),
-        Buffer.from(ciphertext)
-      ]);
-
-      return compactPayload.toString('base64');
+      const service = new X25519XSalsa20Poly1305SealingService();
+      return service.convertToCompactFormat(payload);
     } catch (error: any) {
       throw new Error(`MetaMask to compact conversion failed: ${error.message}`);
     }
-  }
-
-  /**
-   * 获取 MetaMask 兼容的公钥（从以太坊私钥派生）
-   * 注意：实际使用中应该从前端的 eth_getEncryptionPublicKey 获取
-   */
-  static getMetaMaskPublicKey(ethereumPrivateKey: string): string {
-    const derivedKeyPair = this.deriveX25519KeyPairFromEthereumKey(ethereumPrivateKey);
-    return derivedKeyPair.publicKey;
   }
 }

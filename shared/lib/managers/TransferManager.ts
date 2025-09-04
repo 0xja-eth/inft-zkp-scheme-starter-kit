@@ -19,17 +19,14 @@ export interface CloneResult {
 }
 
 export class TransferManager {
-  private storage: IStorageService;
   private crypto: CryptoService;
 
   private metadataManager: MetadataManager;
 
   constructor(
-    storageService: IStorageService,
     cryptoService: CryptoService,
     metadataManager: MetadataManager
   ) {
-    this.storage = storageService;
     this.crypto = cryptoService;
 
     this.metadataManager = metadataManager;
@@ -218,62 +215,5 @@ export class TransferManager {
     const addressHash = crypto.createHash('sha256').update(address.toLowerCase()).digest();
     const publicKey = Buffer.concat([addressHash, addressHash]); // 64 bytes
     return '0x' + publicKey.toString('hex');
-  }
-
-  /**
-   * Validate transfer proof format
-   */
-  validateProof(proof: string): boolean {
-    try {
-      const proofBuffer = Buffer.from(proof.replace('0x', ''), 'hex');
-      return proofBuffer.length === 144; // 32 + 32 + 64 + 16 = 144 bytes
-    } catch (error) {
-      return false;
-    }
-  }
-
-  /**
-   * Extract proof components
-   */
-  extractProofComponents(proof: string): ProofData {
-    try {
-      const proofBuffer = Buffer.from(proof.replace('0x', ''), 'hex');
-
-      if (proofBuffer.length !== 144) {
-        throw new Error('Invalid proof length');
-      }
-
-      return {
-        oldDataHash: '0x' + proofBuffer.subarray(0, 32).toString('hex'),
-        newDataHash: '0x' + proofBuffer.subarray(32, 64).toString('hex'),
-        pubKey: '0x' + proofBuffer.subarray(64, 128).toString('hex'),
-        sealedKey: '0x' + proofBuffer.subarray(128, 144).toString('hex'),
-      };
-    } catch (error: any) {
-      throw new Error(`Failed to extract proof components: ${error.message}`);
-    }
-  }
-
-  /**
-   * Sign transfer confirmation (recipient signature)
-   */
-  async signTransferConfirmation(
-    oldDataHashes: string[],
-    newDataHashes: string[],
-    recipientPrivateKey: string
-  ): Promise<string> {
-    try {
-      const wallet = new ethers.Wallet(recipientPrivateKey);
-
-      // Create message to sign
-      const message = ethers.solidityPackedKeccak256(
-        ['bytes32[]', 'bytes32[]'],
-        [oldDataHashes, newDataHashes]
-      );
-
-      return await wallet.signMessage(ethers.getBytes(message));
-    } catch (error: any) {
-      throw new Error(`Transfer confirmation signing failed: ${error.message}`);
-    }
   }
 }

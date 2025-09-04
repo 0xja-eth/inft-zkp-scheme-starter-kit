@@ -42,7 +42,6 @@ export class AgentNFTClient {
     if (this.storageService) {
       this.metadataManager = new MetadataManager(this.storageService, this.cryptoService);
       this.transferManager = new TransferManager(
-        this.storageService,
         this.cryptoService,
         this.metadataManager
       );

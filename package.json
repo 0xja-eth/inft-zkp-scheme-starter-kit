@@ -24,7 +24,8 @@
     "foundry:build": "forge build",
     "foundry:test": "forge test",
     "foundry:test-v": "forge test -vvv",
-    "test:stream-enc-zkp": "npx tsx test/test-stream-enc-zkp.ts"
+    "test:stream-enc-zkp": "npx tsx test/test-stream-enc-zkp.ts",
+    "test:sealing": "npx tsx test/test-refactored-sealing.ts"
   },
   "keywords": [],
   "author": "",

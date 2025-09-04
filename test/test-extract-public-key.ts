@@ -63,7 +63,7 @@ encPubBase64: ${encPubBase64}`;
   })();
 }
 
-function recoverPubkeys(address: string, challenge: string, signature: string) {
+function recoverPubkeys(challenge: string, signature: string) {
   const digest = ethers.hashMessage(challenge);
   return SigningKey.recoverPublicKey(digest, signature)
 }
@@ -76,5 +76,5 @@ const pkg: ExportPackage = {
   "signature": "0x55a6098b223d4323e62a10151a0cf56986c87a9ad6cb040f8232308f1fcefd4952f3097c86bb40e66d7064aa319c6846794303f0520d0f156f8fbd418715399d1c"
 }
 
-const result = recoverPubkeys(pkg.address, pkg.challenge, pkg.signature);
+const result = recoverPubkeys(pkg.challenge, pkg.signature);
 console.log("Public Key: ", result);

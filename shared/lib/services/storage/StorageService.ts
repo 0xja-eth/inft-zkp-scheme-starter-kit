@@ -13,21 +13,21 @@ export interface StorageOptions {
 }
 
 /**
- * 基础存储服务类，提供自动fallback和超时机制
+ * Base storage service class providing automatic fallback and timeout mechanisms
  *
- * 功能特性:
- * 1. 自动超时处理 - 超过指定时间自动切换到fallback
- * 2. 多级fallback链 - 支持链式fallback，失败时依次尝试下一个服务
- * 3. 重试机制 - 每个服务都有独立的重试次数
- * 4. 错误聚合 - 收集所有尝试的错误信息，便于调试
- * 5. 统一接口 - 所有存储服务继承相同的接口和行为
+ * Features:
+ * 1. Automatic timeout handling - automatically switches to fallback after specified time
+ * 2. Multi-level fallback chain - supports chained fallbacks, tries next service on failure
+ * 3. Retry mechanism - each service has independent retry counts
+ * 4. Error aggregation - collects all attempt error information for debugging
+ * 5. Unified interface - all storage services inherit the same interface and behavior
  */
 export abstract class StorageService implements IStorageService {
   protected options: Required<StorageOptions>;
 
   constructor(options: StorageOptions = {}) {
     this.options = {
-      timeout: options.timeout ?? 30000, // 30秒默认超时
+      timeout: options.timeout ?? 30000, // 30 seconds default timeout
       fallbackServices: options.fallbackServices ?? [],
       maxRetries: options.maxRetries ?? 1,
       retryDelay: options.retryDelay ?? 1000,
@@ -35,36 +35,36 @@ export abstract class StorageService implements IStorageService {
   }
 
   /**
-   * 存储数据，支持超时和fallback
+   * Store data with timeout and fallback support
    */
   async store(data: Buffer): Promise<StorageResult> {
     return this.executeWithFallback('store', [data]);
   }
 
   /**
-   * 检索数据，支持超时和fallback
+   * Retrieve data with timeout and fallback support
    */
   async retrieve(rootHash: string): Promise<Buffer> {
     return this.executeWithFallback('retrieve', [rootHash]);
   }
 
   /**
-   * 子类必须实现的具体存储方法
+   * Concrete storage method that subclasses must implement
    */
   protected abstract doStore(data: Buffer): Promise<StorageResult>;
 
   /**
-   * 子类必须实现的具体检索方法
+   * Concrete retrieval method that subclasses must implement
    */
   protected abstract doRetrieve(rootHash: string): Promise<Buffer>;
 
   /**
-   * 获取存储服务名称，用于日志标识
+   * Get storage service name for logging identification
    */
   protected abstract getServiceName(): string;
 
   /**
-   * 执行操作，带有超时和fallback机制的核心逻辑
+   * Execute operation with timeout and fallback mechanism core logic
    */
   private async executeWithFallback<T>(operation: 'store' | 'retrieve', args: any[]): Promise<T> {
     const allServices = [this, ...this.options.fallbackServices];
@@ -76,7 +76,7 @@ export abstract class StorageService implements IStorageService {
 
       console.log(`🔄 Trying ${serviceName} for ${operation}...`);
 
-      // 对每个服务进行重试
+      // Retry for each service
       for (let retry = 0; retry < this.options.maxRetries; retry++) {
         try {
           const attempt = retry + 1;
@@ -100,7 +100,7 @@ export abstract class StorageService implements IStorageService {
             error: error instanceof Error ? error : new Error(String(error)),
           });
 
-          // 如果不是最后一次重试，等待一段时间
+          // If not the last retry, wait for a period
           if (retry < this.options.maxRetries - 1) {
             console.log(`⏳ Retrying ${serviceName} in ${this.options.retryDelay}ms...`);
             await this.delay(this.options.retryDelay);
@@ -111,7 +111,7 @@ export abstract class StorageService implements IStorageService {
       console.log(`🔄 ${serviceName} exhausted all retries, trying next fallback...`);
     }
 
-    // 所有服务和fallback都失败了
+    // All services and fallbacks failed
     const errorSummary = errors
       .map(({ service, error }) => `${service}: ${error.message}`)
       .join('; ');
@@ -120,7 +120,7 @@ export abstract class StorageService implements IStorageService {
   }
 
   /**
-   * 执行操作并应用超时限制
+   * Execute operation and apply timeout limit
    */
   private async executeWithTimeout<T>(
     service: IStorageService,
@@ -135,7 +135,7 @@ export abstract class StorageService implements IStorageService {
   }
 
   /**
-   * 调用具体的服务操作
+   * Call specific service operation
    */
   private async callServiceOperation<T>(
     service: IStorageService,
@@ -143,24 +143,24 @@ export abstract class StorageService implements IStorageService {
     args: any[]
   ): Promise<T> {
     if (service === this) {
-      // 调用当前服务的实际实现方法
+      // Call current service's actual implementation method
       if (operation === 'store') {
         return (this.doStore as any)(...args);
       } else {
         return (this.doRetrieve as any)(...args);
       }
     } else {
-      // 调用fallback服务的方法
-      // 重要：区分是否为StorageService实例，避免嵌套fallback
+      // Call fallback service's method
+      // Important: distinguish if it's a StorageService instance to avoid nested fallback
       if (service instanceof StorageService) {
-        // 直接调用底层实现，绕过fallback机制，避免嵌套
+        // Directly call underlying implementation, bypass fallback mechanism to avoid nesting
         if (operation === 'store') {
           return (service.doStore as any)(...args);
         } else {
           return (service.doRetrieve as any)(...args);
         }
       } else {
-        // 外部服务，正常调用
+        // External service, normal call
         if (operation === 'store') {
           return (service.store as any)(...args);
         } else {
@@ -171,7 +171,7 @@ export abstract class StorageService implements IStorageService {
   }
 
   /**
-   * 创建超时Promise
+   * Create timeout Promise
    */
   private createTimeoutPromise<T>(timeoutMs: number, operation: string): Promise<T> {
     return new Promise((_, reject) => {
@@ -182,7 +182,7 @@ export abstract class StorageService implements IStorageService {
   }
 
   /**
-   * 获取服务名称用于日志
+   * Get service name for logging
    */
   private getServiceNameForService(service: IStorageService, index: number): string {
     if (service === this) {
@@ -195,14 +195,14 @@ export abstract class StorageService implements IStorageService {
   }
 
   /**
-   * 延时工具方法
+   * Delay utility method
    */
   private delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   /**
-   * 添加fallback服务
+   * Add fallback service
    */
   addFallbackService(service: IStorageService): void {
     this.options.fallbackServices.push(service);
@@ -212,7 +212,7 @@ export abstract class StorageService implements IStorageService {
   }
 
   /**
-   * 设置超时时间
+   * Set timeout duration
    */
   setTimeout(timeoutMs: number): void {
     this.options.timeout = timeoutMs;
@@ -220,7 +220,7 @@ export abstract class StorageService implements IStorageService {
   }
 
   /**
-   * 获取当前配置
+   * Get current configuration
    */
   getOptions(): StorageOptions {
     return {

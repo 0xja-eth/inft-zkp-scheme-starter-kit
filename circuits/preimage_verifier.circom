@@ -68,9 +68,6 @@ template PreimageVerifier(N) {
     component msgBitsArr[N];
     component cipherBitsArr[N];
 
-    // component toBits[N];
-    // component fromBits[N];
-
     signal ks[N];
     
     for (var i = 0; i < N; i++) {
@@ -90,16 +87,6 @@ template PreimageVerifier(N) {
         ks[i] <== ksBits[i].out;
 
         // Decompose to 128 bits and recompose to enforce 128-bit constraint
-        // toBits[i] = Num2Bits(128);
-        // fromBits[i] = Bits2Num(128);
-
-        // toBits[i].in <== hks[i].out;
-        // fromBits[i].in <== toBits[i].out;
-        // ks[i] <== fromBits[i].out;
-
-        // XOR constraint: cipher[i] == msg[i] XOR ks[i]
-        // In finite field: a XOR b = a + b - 2*a*b
-
         msgBitsArr[i] = Num2Bits(128);
         msgBitsArr[i].in <== msg[i];
 
@@ -108,8 +95,6 @@ template PreimageVerifier(N) {
             cipherBitsArr[i].in[b] <== msgBitsArr[i].out[b] + ksBits[i].in[b] - 2 * msgBitsArr[i].out[b] * ksBits[i].in[b];
         }
         cipher[i] === cipherBitsArr[i].out;
-
-        // cipher[i] === msg[i] + ks[i] - 2 * msg[i] * ks[i];
     }
 
     // digest chain over cipher[0..127]
